@@ -1466,4 +1466,3 @@ ALTER TABLE "SessionCheckpoint" ADD CONSTRAINT "SessionCheckpoint_trainingSessio
 
 -- AddForeignKey
 ALTER TABLE "BackupRecord" ADD CONSTRAINT "BackupRecord_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
