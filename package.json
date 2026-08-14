@@ -47,6 +47,7 @@
     "@prisma/client": "^6.0.0",
     "next": "16.3.1",
     "pg": "8.16.3",
+    "pg-cloudflare": "1.4.0",
     "react": "19.2.8",
     "react-dom": "19.2.8"
   },
