@@ -1,0 +1,2 @@
+# PostgreSQL migration history for the Cloudflare + Supabase trial deployment.
+provider = "postgresql"

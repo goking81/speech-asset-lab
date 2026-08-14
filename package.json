@@ -22,6 +22,10 @@
     "prisma:format": "prisma format",
     "prisma:validate": "prisma validate",
     "prisma:generate": "prisma generate",
+    "prisma:cloud:prepare": "node scripts/prepare-cloud-prisma-schema.mjs",
+    "prisma:cloud:validate": "pnpm run prisma:cloud:prepare && prisma validate --config prisma.cloud.config.ts",
+    "cloud:seed:dry-run": "node scripts/seed-cloud-trial-assets.mjs --dry-run",
+    "cloud:seed": "node scripts/seed-cloud-trial-assets.mjs",
     "db:migrate": "prisma migrate deploy",
     "db:seed": "prisma db seed",
     "db:setup": "node scripts/setup-local-db.mjs",
@@ -33,8 +37,10 @@
   },
   "dependencies": {
     "@phosphor-icons/react": "^2.1.10",
+    "@prisma/adapter-pg": "6.19.3",
     "@prisma/client": "^6.0.0",
     "next": "16.2.11",
+    "pg": "8.16.3",
     "react": "19.2.8",
     "react-dom": "19.2.8"
   },
