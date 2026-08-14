@@ -67,7 +67,7 @@
 
 ## D-048 RC2 私有云端发布与数据边界
 
-决定：在保留本地 RC1 交付物的前提下，启动 RC2 私有云端发布。线上运行使用 Cloudflare 承载应用、Supabase PostgreSQL 保存业务数据、Supabase 私有 Storage 保存来源原件与备份；生产访问入口为 `speechasset.learnbox.cc`，并由 Cloudflare Access 限制为单一授权用户。
+决定：在保留本地 RC1 交付物的前提下，启动 RC2 私有云端发布。线上运行使用 Cloudflare 承载应用、Supabase PostgreSQL 保存试用版业务数据；生产访问入口为 `speechasset.learnbox.cc`，并由 Cloudflare Access 限制为单一授权用户。来源原件和备份的私有 Storage 方案留待后续资料上传版本单独设计。
 
 原因：用户已明确准备 GitHub、Cloudflare、Supabase 和 `learnbox.cc` 域名，需要从本机可运行版本迁移到可从个人设备安全访问的版本。
 

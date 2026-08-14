@@ -17,3 +17,12 @@ export const primaryNavigation = [
   { href: '/profile', label: '关于我', description: '查看个人学习概览。' },
   { href: '/settings', label: '设置', description: '调整本地工作台配置。' },
 ] as const satisfies readonly PrimaryNavigationItem[];
+
+/** 线上试用版不暴露依赖本机文件系统的内容工作台入口。 */
+export function getPrimaryNavigation(isCloudTrial: boolean) {
+  if (!isCloudTrial) return primaryNavigation;
+
+  return primaryNavigation.filter(
+    (item) => item.href !== '/content' && item.href !== '/graph' && item.href !== '/profile',
+  );
+}

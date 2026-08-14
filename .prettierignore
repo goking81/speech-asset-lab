@@ -11,3 +11,5 @@ versioned_sources/
 FILE_HASHES.json
 .speech-asset-lab-server.json
 .env.example
+.dev.vars.example
+.open-next/

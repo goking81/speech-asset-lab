@@ -1,11 +1,14 @@
 import { NextResponse } from 'next/server';
 
+import { isCloudTrialRuntime } from '@/lib/runtime-mode';
+import { cloudTrialUnavailableResponse } from '@/server/cloud-trial-response';
 import { createDatabaseClient } from '@/server/db/client';
-import { TextParserService } from '@/server/imports/text-parser-service';
 
 type RouteContext = { params: Promise<{ batchId: string }> };
 
 export async function GET(_request: Request, context: RouteContext) {
+  if (isCloudTrialRuntime()) return cloudTrialUnavailableResponse();
+
   const { batchId } = await context.params;
   const prisma = createDatabaseClient();
 
@@ -57,11 +60,14 @@ export async function GET(_request: Request, context: RouteContext) {
 }
 
 export async function POST(request: Request, context: RouteContext) {
+  if (isCloudTrialRuntime()) return cloudTrialUnavailableResponse();
+
   const { batchId } = await context.params;
   const body = (await request.json().catch(() => ({}))) as { forceOcrFileId?: string };
   const prisma = createDatabaseClient();
 
   try {
+    const { TextParserService } = await import('@/server/imports/text-parser-service');
     const parser = new TextParserService(prisma);
     if (body.forceOcrFileId) {
       const document = await parser.reparsePdfWithOcr(batchId, body.forceOcrFileId);

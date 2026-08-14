@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 
 import { settingsSections, type SettingsSectionId } from '@/lib/settings-navigation';
+import { isCloudTrialRuntime } from '@/lib/runtime-mode';
 
 type LocalSettings = {
   training: {
@@ -67,13 +68,17 @@ type ReleaseReport = {
   }>;
 };
 
-function currentSectionFromHash() {
-  const section = settingsSections.find((item) => `#${item.id}` === window.location.hash);
+const cloudTrialSettingsSections = settingsSections.filter((section) => section.id === 'ai');
+
+function currentSectionFromHash(sections: readonly (typeof settingsSections)[number][]) {
+  const section = sections.find((item) => `#${item.id}` === window.location.hash);
 
   return section?.id ?? null;
 }
 
 export function SettingsPage() {
+  const isCloudTrial = isCloudTrialRuntime();
+  const visibleSections = isCloudTrial ? cloudTrialSettingsSections : settingsSections;
   const [currentSection, setCurrentSection] = useState<SettingsSectionId | null>(null);
   const [aiStatus, setAiStatus] = useState('正在读取本地 AI 配置。');
   const [localSettings, setLocalSettings] = useState<LocalSettings | null>(null);
@@ -108,13 +113,13 @@ export function SettingsPage() {
   }
 
   useEffect(() => {
-    const syncCurrentSection = () => setCurrentSection(currentSectionFromHash());
+    const syncCurrentSection = () => setCurrentSection(currentSectionFromHash(visibleSections));
 
     syncCurrentSection();
     window.addEventListener('hashchange', syncCurrentSection);
 
     return () => window.removeEventListener('hashchange', syncCurrentSection);
-  }, []);
+  }, [visibleSections]);
 
   useEffect(() => {
     void fetch('/api/ai/config')
@@ -137,6 +142,8 @@ export function SettingsPage() {
         );
       })
       .catch(() => setAiStatus('无法读取 AI 配置；AI 功能保持未配置降级。'));
+    if (isCloudTrial) return;
+
     let active = true;
     void fetch('/api/settings/local')
       .then(async (response) => {
@@ -173,7 +180,7 @@ export function SettingsPage() {
     return () => {
       active = false;
     };
-  }, []);
+  }, [isCloudTrial]);
 
   async function createBackup() {
     setIsWorking(true);
@@ -388,13 +395,22 @@ export function SettingsPage() {
       <header className="page-heading">
         <p className="page-heading__eyebrow">SETTINGS / 08</p>
         <h1>设置</h1>
-        <p>所有配置均面向单用户、本地运行的工作台。密钥从不在这里明文显示或保存。</p>
+        <p>
+          {isCloudTrial
+            ? '内置资产试用版仅展示 AI 草稿服务状态。密钥只保存在 Cloudflare 服务端，不会在页面显示。'
+            : '所有配置均面向单用户、本地运行的工作台。密钥从不在这里明文显示或保存。'}
+        </p>
       </header>
       {error && <p className="settings-page__error">{error}</p>}
-      {!error && <p className="settings-page__status">{localStatus}</p>}
+      {!error && !isCloudTrial && <p className="settings-page__status">{localStatus}</p>}
+      {isCloudTrial && (
+        <p className="settings-page__status">
+          资料导入、PDF/OCR、本地目录与备份功能保留在你的本机工作台，不在云端试用版开放。
+        </p>
+      )}
       <div className="settings-layout">
         <nav className="settings-nav" aria-label="设置分区">
-          {settingsSections.map((section) => (
+          {visibleSections.map((section) => (
             <a
               href={`#${section.id}`}
               key={section.id}
@@ -406,7 +422,7 @@ export function SettingsPage() {
           ))}
         </nav>
         <div className="settings-sections">
-          {settingsSections.map((section) => (
+          {visibleSections.map((section) => (
             <section id={section.id} key={section.id} tabIndex={-1}>
               <p className="settings-sections__serial">{section.id.toUpperCase()}</p>
               <h2>{section.label}</h2>

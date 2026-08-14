@@ -1,18 +1,23 @@
-import path from 'node:path';
-
 import { NextResponse } from 'next/server';
 
-import { LocalBackupService } from '@/server/backups/local-backup-service';
+import { isCloudTrialRuntime } from '@/lib/runtime-mode';
+import { cloudTrialUnavailableResponse } from '@/server/cloud-trial-response';
 import { createDatabaseClient } from '@/server/db/client';
 import { LocalLogPrivacyService } from '@/server/logging/privacy-service';
 import { TrainingSettingsService } from '@/server/settings/training-settings-service';
-import { getLocalPaths } from '@/server/storage/local-paths';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET() {
+  if (isCloudTrialRuntime()) return cloudTrialUnavailableResponse();
+
   const prisma = createDatabaseClient();
   try {
+    const [{ LocalBackupService }, { getLocalPaths }, path] = await Promise.all([
+      import('@/server/backups/local-backup-service'),
+      import('@/server/storage/local-paths'),
+      import('node:path'),
+    ]);
     const paths = getLocalPaths();
     const [backups, privacy, training] = await Promise.all([
       new LocalBackupService(prisma).list(),
@@ -22,9 +27,9 @@ export async function GET() {
     return NextResponse.json({
       storage: {
         database: 'data/speech-asset-lab.db',
-        files: displayLocalPath(paths.filesDir),
-        logs: displayLocalPath(paths.logsDir),
-        backups: displayLocalPath(paths.backupsDir),
+        files: displayLocalPath(paths.filesDir, path),
+        logs: displayLocalPath(paths.logsDir, path),
+        backups: displayLocalPath(paths.backupsDir, path),
       },
       backups,
       privacy,
@@ -37,7 +42,7 @@ export async function GET() {
   }
 }
 
-function displayLocalPath(targetPath: string) {
+function displayLocalPath(targetPath: string, path: typeof import('node:path')) {
   const relative = path.relative(process.cwd(), targetPath);
   if (
     !relative ||

@@ -5,6 +5,8 @@ import {
   CandidateReviewValidationError,
 } from '@/server/content/candidate-review-service';
 import { createDatabaseClient } from '@/server/db/client';
+import { isCloudTrialRuntime } from '@/lib/runtime-mode';
+import { cloudTrialUnavailableResponse } from '@/server/cloud-trial-response';
 
 const nodeTypes = [
   'CONTEXT',
@@ -24,6 +26,8 @@ const expressionUnitTypes = [
 const candidateStatuses = ['EDITING', 'IGNORED'] as const;
 
 export async function GET() {
+  if (isCloudTrialRuntime()) return cloudTrialUnavailableResponse();
+
   const prisma = createDatabaseClient();
 
   try {
@@ -70,6 +74,8 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
+  if (isCloudTrialRuntime()) return cloudTrialUnavailableResponse();
+
   const prisma = createDatabaseClient();
 
   try {

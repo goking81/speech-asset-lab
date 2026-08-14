@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 
-import { ImportIntakeService } from '@/server/imports/import-intake-service';
+import { isCloudTrialRuntime } from '@/lib/runtime-mode';
+import { cloudTrialUnavailableResponse } from '@/server/cloud-trial-response';
 import { createDatabaseClient } from '@/server/db/client';
 
 type IntakeRequest = {
@@ -15,6 +16,8 @@ type IntakeRequest = {
 };
 
 export async function POST(request: Request) {
+  if (isCloudTrialRuntime()) return cloudTrialUnavailableResponse();
+
   const body = (await request.json()) as IntakeRequest;
   const text = body.text?.trim();
   const uploadedFiles = body.files ?? [];
@@ -26,6 +29,7 @@ export async function POST(request: Request) {
   const prisma = createDatabaseClient();
 
   try {
+    const { ImportIntakeService } = await import('@/server/imports/import-intake-service');
     const service = new ImportIntakeService(prisma);
     const result = await service.createBatch({
       userId: 'local-user',

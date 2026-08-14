@@ -17,6 +17,7 @@ tmp/
 # 本机编译与运行状态
 *.tsbuildinfo
 .speech-asset-lab-server.json
+.open-next/
 
 # Cloudflare 本地开发状态与密钥
 .wrangler/

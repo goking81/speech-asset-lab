@@ -6,8 +6,12 @@ import { R1DraftProcessor } from '@/server/ai/r1-draft-processor';
 import { ensureLocalR1Release } from '@/server/ai/r1-release-service';
 import { createDatabaseClient } from '@/server/db/client';
 import { syncEnvironmentProviderConfig } from '@/server/ai/provider-config-service';
+import { isCloudTrialRuntime } from '@/lib/runtime-mode';
+import { cloudTrialUnavailableResponse } from '@/server/cloud-trial-response';
 
 export async function POST(request: Request) {
+  if (isCloudTrialRuntime()) return cloudTrialUnavailableResponse();
+
   const body = (await request.json()) as { sourceDocumentId?: string };
   const prisma = createDatabaseClient();
   try {

@@ -6,7 +6,8 @@ import pg from 'pg';
 const { Client } = pg;
 
 const LOCAL_USER_ID = 'local-user';
-const TRIAL_USER_ID = 'trial-user';
+// 线上试用版沿用单用户固定 id，保证既有单用户训练服务无需改变产品规则。
+const TRIAL_USER_ID = LOCAL_USER_ID;
 const DEFAULT_LOCAL_DATABASE_URL = 'file:../data/speech-asset-lab.db';
 
 function parseArguments(argumentsList) {

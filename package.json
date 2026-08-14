@@ -24,8 +24,13 @@
     "prisma:generate": "prisma generate",
     "prisma:cloud:prepare": "node scripts/prepare-cloud-prisma-schema.mjs",
     "prisma:cloud:validate": "pnpm run prisma:cloud:prepare && prisma validate --config prisma.cloud.config.ts",
+    "prisma:cloud:generate": "pnpm run prisma:cloud:prepare && prisma generate --config prisma.cloud.config.ts",
     "cloud:seed:dry-run": "node scripts/seed-cloud-trial-assets.mjs --dry-run",
     "cloud:seed": "node scripts/seed-cloud-trial-assets.mjs",
+    "cloud:build": "pnpm run prisma:cloud:generate && opennextjs-cloudflare build",
+    "cloud:preview": "pnpm run cloud:build && opennextjs-cloudflare preview",
+    "cloud:deploy": "pnpm run cloud:build && opennextjs-cloudflare deploy -- --keep-vars",
+    "cloud:typegen": "wrangler types --env-interface CloudflareEnv cloudflare-env.d.ts",
     "db:migrate": "prisma migrate deploy",
     "db:seed": "prisma db seed",
     "db:setup": "node scripts/setup-local-db.mjs",
@@ -36,10 +41,11 @@
     "verify:f0": "node scripts/verify-f0.mjs"
   },
   "dependencies": {
+    "@opennextjs/cloudflare": "^1.20.2",
     "@phosphor-icons/react": "^2.1.10",
     "@prisma/adapter-pg": "6.19.3",
     "@prisma/client": "^6.0.0",
-    "next": "16.2.11",
+    "next": "16.3.1",
     "pg": "8.16.3",
     "react": "19.2.8",
     "react-dom": "19.2.8"
@@ -50,11 +56,12 @@
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
     "eslint": "^9.0.0",
-    "eslint-config-next": "16.2.11",
+    "eslint-config-next": "16.3.1",
     "eslint-config-prettier": "^10.0.0",
     "prettier": "^3.0.0",
     "prisma": "^6.0.0",
     "typescript": "^5.0.0",
-    "vitest": "^4.1.10"
+    "vitest": "^4.1.10",
+    "wrangler": "^4.122.0"
   }
 }

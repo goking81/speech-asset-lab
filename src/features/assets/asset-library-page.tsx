@@ -20,6 +20,8 @@ import {
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 
+import { isCloudTrialRuntime } from '@/lib/runtime-mode';
+
 type AssetRecord = {
   id: string;
   versions: Array<{
@@ -38,6 +40,7 @@ type AssetRecord = {
 export function AssetLibraryPage() {
   const [assets, setAssets] = useState<AssetRecord[] | null>(null);
   const [error, setError] = useState('');
+  const isCloudTrial = isCloudTrialRuntime();
 
   useEffect(() => {
     void fetch('/api/assets')
@@ -61,14 +64,20 @@ export function AssetLibraryPage() {
           </h1>
           <p>浏览、管理你的英语表达语流，选择合适的语流用于训练。</p>
         </div>
-        <Link className="asset-library__import-action" href="/content/import">
-          导入来源素材
-        </Link>
+        {isCloudTrial ? (
+          <span className="asset-library__import-action asset-library__import-action--static">
+            内置资产试用版
+          </span>
+        ) : (
+          <Link className="asset-library__import-action" href="/content/import">
+            导入来源素材
+          </Link>
+        )}
       </header>
 
       {error && <p className="asset-library__status">{error}</p>}
       {!assets && !error && <p className="asset-library__status">正在读取本地资产库。</p>}
-      {assets?.length === 0 && <EmptyState />}
+      {assets?.length === 0 && <EmptyState isCloudTrial={isCloudTrial} />}
       {assets && assets.length > 0 && (
         <section className="asset-library__list" aria-label="资产列表">
           {assets.map((asset) => {
@@ -84,7 +93,7 @@ export function AssetLibraryPage() {
             const description = personal
               ? isInitialAsset
                 ? '初始学习资产已就绪，可直接进入训练。'
-                : '个人版本已确认，可继续用于本地训练。'
+                : `个人版本已确认，可继续用于${isCloudTrial ? '线上' : '本地'}训练。`
               : source.coreIdea;
             const flow = personal?.coreFlow ?? source.coreFlow;
 
@@ -179,16 +188,26 @@ function AssetTopicIcon({
   return <Leaf {...iconProps} />;
 }
 
-function EmptyState() {
+function EmptyState({ isCloudTrial }: { isCloudTrial: boolean }) {
   return (
     <section className="asset-library__empty" aria-labelledby="asset-empty-heading">
       <p className="asset-library__serial">PERSONAL ASSET NEXT</p>
       <h2 id="asset-empty-heading">还没有可个人化的来源资产</h2>
-      <p>普通来源资产需要建立个人版本；初始学习资产会在导入时自动建立可训练版本。</p>
+      <p>
+        {isCloudTrial
+          ? '内置资产尚未完成种子初始化。完成后会自动提供可训练的个人版本。'
+          : '普通来源资产需要建立个人版本；初始学习资产会在导入时自动建立可训练版本。'}
+      </p>
       <div className="asset-library__actions">
-        <Link className="asset-library__primary-action" href="/content/jobs/manual-review">
-          查看来源资产候选
-        </Link>
+        {isCloudTrial ? (
+          <Link className="asset-library__primary-action" href="/">
+            返回今日训练
+          </Link>
+        ) : (
+          <Link className="asset-library__primary-action" href="/content/jobs/manual-review">
+            查看来源资产候选
+          </Link>
+        )}
         <Link className="asset-library__secondary-action" href="/content">
           返回内容工作台
         </Link>

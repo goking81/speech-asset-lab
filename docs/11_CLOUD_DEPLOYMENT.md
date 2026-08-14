@@ -23,7 +23,7 @@ https://speechasset.learnbox.cc
 
 ## 3. 迁移顺序
 
-1. 建立 PostgreSQL 基线与本地 SQLite 到 PostgreSQL 的一次性内置资产迁移工具。
+1. 建立 PostgreSQL 基线与本地 SQLite 到 PostgreSQL 的一次性内置资产迁移工具。只复制已确认的资产结构及可训练个人版本，不能复制原始资料、文件路径、候选、训练历史、备份、日志或 AI 原始响应。
 2. 适配 Cloudflare 运行时，配置环境变量与 secrets；严禁将数据库密码、DeepSeek Key、Supabase service role key 写入仓库或前端。
 3. 在线上移除导入、PDF 解析、OCR 与恢复入口，保留明确的试用版说明。
 4. 配置 Cloudflare Access、部署预览环境、生产域名与 DNS。
@@ -33,11 +33,16 @@ https://speechasset.learnbox.cc
 
 | 现有 RC1 能力 | 线上替代方案 | 状态 |
 | --- | --- | --- |
-| SQLite + Prisma | Supabase PostgreSQL 独立基线 | 待实施 |
+| SQLite + Prisma | Supabase PostgreSQL 独立基线与安全种子脚本 | 已完成代码校验，待连接生产库执行 |
 | `data/files` | 本次不迁移；原始资料继续本机保管 | 排除 |
 | 本地备份、日志 | 本次不提供线上恢复；生产日志仅保留脱敏运行日志 | 待设计 |
 | Python / Poppler / Tesseract / Windows OCR | 本次不发布；后续单独选择 OCR 服务 | 排除 |
-| 本机服务访问 | Cloudflare Access 保护的子域名 | 待配置 |
+| 本机服务访问 | Cloudflare Access 保护的子域名 | 运行配置已完成，待部署验证 |
+
+## 6. 当前工程风险
+
+- 本机 Windows 下载 Cloudflare `workerd` 可选二进制连续超时，已在 10 分钟后停止重试。因此本机 OpenNext/Worker 预览尚未完成；Next.js 生产构建、Cloud Prisma 生成、类型检查、lint 和格式检查已通过。下一步必须由 Cloudflare Workers 的 Linux 构建执行 `cloud:build`，作为最终 Workers 打包验证。
+- Supabase 生产库仍为空。执行 Prisma PostgreSQL migration 与种子前，必须在本机受保护环境或 Cloudflare secret 中配置连接串，禁止在聊天、GitHub 或前端变量中传递数据库密码。
 
 ## 5. 发布门禁
 

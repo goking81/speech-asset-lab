@@ -1,0 +1,6 @@
+# 仅供 Cloudflare Workers 本机预览使用；复制为 .dev.vars 后自行填写，绝不提交真实值。
+NEXTJS_ENV=development
+APP_VARIANT=cloud-trial
+NEXT_PUBLIC_APP_VARIANT=cloud-trial
+DATABASE_URL=
+DEEPSEEK_API_KEY=

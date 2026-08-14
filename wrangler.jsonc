@@ -1,0 +1,15 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "speech-asset-lab",
+  "main": ".open-next/worker.js",
+  "compatibility_date": "2026-08-14",
+  "compatibility_flags": ["nodejs_compat"],
+  "assets": {
+    "directory": ".open-next/assets",
+    "binding": "ASSETS",
+  },
+  "vars": {
+    "APP_VARIANT": "cloud-trial",
+    "NEXT_PUBLIC_APP_VARIANT": "cloud-trial",
+  },
+}

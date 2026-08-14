@@ -2,8 +2,11 @@
 
 import { useEffect, useState } from 'react';
 
+import { isCloudTrialRuntime } from '@/lib/runtime-mode';
+
 export function StatusStrip() {
   const [aiConfigured, setAiConfigured] = useState<boolean | null>(null);
+  const isCloudTrial = isCloudTrialRuntime();
 
   useEffect(() => {
     void fetch('/api/ai/config')
@@ -18,7 +21,7 @@ export function StatusStrip() {
 
   return (
     <header className="status-strip" aria-label="应用状态">
-      <p>桌面优先 · 本地运行</p>
+      <p>{isCloudTrial ? '内置资产试用版 · 私有访问' : '桌面优先 · 本地运行'}</p>
       <dl>
         <div>
           <dt>AI 服务</dt>
@@ -27,7 +30,7 @@ export function StatusStrip() {
           </dd>
         </div>
         <div>
-          <dt>本地数据</dt>
+          <dt>{isCloudTrial ? '云端数据' : '本地数据'}</dt>
           <dd className="status-strip__saved">已保存</dd>
         </div>
       </dl>
