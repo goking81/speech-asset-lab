@@ -8,6 +8,9 @@
     "directory": ".open-next/assets",
     "binding": "ASSETS",
   },
+  "build": {
+    "command": "pnpm run cloud:build",
+  },
   "vars": {
     "APP_VARIANT": "cloud-trial",
     "NEXT_PUBLIC_APP_VARIANT": "cloud-trial",
