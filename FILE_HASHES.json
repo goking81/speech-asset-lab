@@ -1,0 +1,187 @@
+[
+  {
+    "path": "AGENTS.md",
+    "bytes": 4109,
+    "sha256": "0f21a9b7e476038eb26a678dfeaab3462cd3400d69cfbc6a77ff934001ca30f6"
+  },
+  {
+    "path": "GOAL.md",
+    "bytes": 1337,
+    "sha256": "6b76ebdba24ada1c722a7f4c50811b08f143989a3b3415c34eff1d266e9fe8f7"
+  },
+  {
+    "path": "README.md",
+    "bytes": 1765,
+    "sha256": "56c75082ff5b11fc88c8dbdbf88edf743fb3fb2b8888ee836c0d0af8f44e69df"
+  },
+  {
+    "path": "docs/00_PROJECT_HOME.md",
+    "bytes": 2153,
+    "sha256": "b962dc2126867a3efd1743b379a721d03e1ea0c2a93ec6a1ca67edf838d6f849"
+  },
+  {
+    "path": "docs/01_PRD.md",
+    "bytes": 6196,
+    "sha256": "15165ef330c20662e4487a74fcadcf98f71b6dbbc2cfc24b769e6384939935c2"
+  },
+  {
+    "path": "docs/02_PAGE_SPEC.md",
+    "bytes": 7293,
+    "sha256": "6d8005957af1258145da1fa9156cf071f8bb21cfa83a0373f6a8c6ef2785b19f"
+  },
+  {
+    "path": "docs/02_PROTOTYPE_SPEC.md",
+    "bytes": 5557,
+    "sha256": "a3e30126d7c596625fcae032b6c3ccfb878cbad210a1797c15f556eba02b0188"
+  },
+  {
+    "path": "docs/03_DESIGN_SYSTEM.md",
+    "bytes": 3250,
+    "sha256": "2a8d675e80e0f1db4e5329d504861915a71755cdb15eaa1f4d232a3ca2cf1070"
+  },
+  {
+    "path": "docs/04_DECISIONS.md",
+    "bytes": 2460,
+    "sha256": "fe75fa2535b2e1f6617d6c08522de125260a30d2c63ab2c48fb5c7a0975d01df"
+  },
+  {
+    "path": "docs/04_PROMPT_COACH_RULES.md",
+    "bytes": 2958,
+    "sha256": "0722b7f13ec8784842788f5505d2a8c5ec66fe482a22c494648997784f5f6e94"
+  },
+  {
+    "path": "docs/05_DATA_MODEL.md",
+    "bytes": 7015,
+    "sha256": "9a799d4cf3467031f9b9cc50c6f4c4ec4db84089eb71901c21639cf3fdf684b2"
+  },
+  {
+    "path": "docs/06_ARCHITECTURE.md",
+    "bytes": 3673,
+    "sha256": "fb2a19f8fea69e8e531a8d70f3df05f21a7e04579309ed90a2b8fd49d0a90b77"
+  },
+  {
+    "path": "docs/07_ROADMAP.md",
+    "bytes": 3086,
+    "sha256": "f71ca0b9608852152708ce956cb012bc526f9e3d6befa802d424f41574769349"
+  },
+  {
+    "path": "docs/08_CHAT_STARTERS.md",
+    "bytes": 939,
+    "sha256": "36b4e8bdfc34ae84be188d77ec9e6c557ddceb7a04b38ccfdf40e63c9f64a8cc"
+  },
+  {
+    "path": "docs/09_SOURCE_MANIFEST.md",
+    "bytes": 2199,
+    "sha256": "f61608453f32a8d43e5ff726918f30a9a99fc6b7fb9eb5a9f7ba49a492735d23"
+  },
+  {
+    "path": "docs/10_CONSISTENCY_AUDIT.md",
+    "bytes": 2743,
+    "sha256": "481d5db1b1cb355cb5e530f4e9459a88e6452b87af7c4d3f4ecbfe834f2a3853"
+  },
+  {
+    "path": "prisma/schema.prisma",
+    "bytes": 28364,
+    "sha256": "13c6ca36be5f548598c5529938bda14423245f54071ec3a23b2516472b9f3595"
+  },
+  {
+    "path": "release/HANDOFF_CHECKLIST.md",
+    "bytes": 942,
+    "sha256": "2b2b4cd445c2c35056f7b3ad9879e9f43e7853375b9e8d93247f21ebabb35a2b"
+  },
+  {
+    "path": "release/RELEASE_GATE.md",
+    "bytes": 1588,
+    "sha256": "88e777db57b28e3d4eea37899a3ccef21500c8ce08f05899d16ff340578b4a95"
+  },
+  {
+    "path": "tasks/CURRENT.md",
+    "bytes": 264,
+    "sha256": "7916b5d6bc0b4eeb98da73d2439bb0c1add3e9505985bf264d0b51e5847175c7"
+  },
+  {
+    "path": "tasks/F0/TASK.md",
+    "bytes": 984,
+    "sha256": "ff1573bbe3c7c64d60b3ab043433881380d0e936c17dd1f86d29e15b6b3dbfd0"
+  },
+  {
+    "path": "tasks/ITERATION_01/TASK.md",
+    "bytes": 1576,
+    "sha256": "c67ee115b040c674c689aa16f795637218c20fc2ba40c7bff58e4aba51730723"
+  },
+  {
+    "path": "tasks/ITERATION_02/TASK.md",
+    "bytes": 952,
+    "sha256": "510c2c6ec84464fe077a0a962935227f367f5d6265041ee0f9d2ca987ca17f28"
+  },
+  {
+    "path": "tasks/ITERATION_03/TASK.md",
+    "bytes": 1111,
+    "sha256": "0ba74c1bd08eba5c727f7fe306a07afb3d47769bbd3b33d42de0b00de8baca15"
+  },
+  {
+    "path": "versioned_sources/00_PROJECT_HOME_v0.8_20260723.md",
+    "bytes": 2153,
+    "sha256": "b962dc2126867a3efd1743b379a721d03e1ea0c2a93ec6a1ca67edf838d6f849"
+  },
+  {
+    "path": "versioned_sources/01_PRD_v0.5_20260723.md",
+    "bytes": 6196,
+    "sha256": "15165ef330c20662e4487a74fcadcf98f71b6dbbc2cfc24b769e6384939935c2"
+  },
+  {
+    "path": "versioned_sources/02_PAGE_SPEC_v0.6_20260723.md",
+    "bytes": 7293,
+    "sha256": "6d8005957af1258145da1fa9156cf071f8bb21cfa83a0373f6a8c6ef2785b19f"
+  },
+  {
+    "path": "versioned_sources/02_PROTOTYPE_SPEC_v0.4_20260723.md",
+    "bytes": 5557,
+    "sha256": "a3e30126d7c596625fcae032b6c3ccfb878cbad210a1797c15f556eba02b0188"
+  },
+  {
+    "path": "versioned_sources/03_DESIGN_SYSTEM_v0.3_20260723.md",
+    "bytes": 3250,
+    "sha256": "2a8d675e80e0f1db4e5329d504861915a71755cdb15eaa1f4d232a3ca2cf1070"
+  },
+  {
+    "path": "versioned_sources/04_DECISIONS_v0.7_20260723.md",
+    "bytes": 2460,
+    "sha256": "fe75fa2535b2e1f6617d6c08522de125260a30d2c63ab2c48fb5c7a0975d01df"
+  },
+  {
+    "path": "versioned_sources/04_PROMPT_COACH_RULES_v0.3_20260723.md",
+    "bytes": 2958,
+    "sha256": "0722b7f13ec8784842788f5505d2a8c5ec66fe482a22c494648997784f5f6e94"
+  },
+  {
+    "path": "versioned_sources/05_DATA_MODEL_v0.3_20260723.md",
+    "bytes": 7015,
+    "sha256": "9a799d4cf3467031f9b9cc50c6f4c4ec4db84089eb71901c21639cf3fdf684b2"
+  },
+  {
+    "path": "versioned_sources/06_ARCHITECTURE_v0.4_20260723.md",
+    "bytes": 3673,
+    "sha256": "fb2a19f8fea69e8e531a8d70f3df05f21a7e04579309ed90a2b8fd49d0a90b77"
+  },
+  {
+    "path": "versioned_sources/07_ROADMAP_v0.3_20260723.md",
+    "bytes": 3086,
+    "sha256": "f71ca0b9608852152708ce956cb012bc526f9e3d6befa802d424f41574769349"
+  },
+  {
+    "path": "versioned_sources/08_CHAT_STARTERS_v0.4_20260723.md",
+    "bytes": 939,
+    "sha256": "36b4e8bdfc34ae84be188d77ec9e6c557ddceb7a04b38ccfdf40e63c9f64a8cc"
+  },
+  {
+    "path": "versioned_sources/09_SOURCE_MANIFEST_v0.8_20260723.md",
+    "bytes": 2199,
+    "sha256": "f61608453f32a8d43e5ff726918f30a9a99fc6b7fb9eb5a9f7ba49a492735d23"
+  },
+  {
+    "path": "versioned_sources/schema_v0.4_20260723.prisma",
+    "bytes": 28364,
+    "sha256": "13c6ca36be5f548598c5529938bda14423245f54071ec3a23b2516472b9f3595"
+  }
+]

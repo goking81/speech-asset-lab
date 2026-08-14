@@ -1,0 +1,728 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+enum InternalStage { S0 S1 S2 S3 S4 S5 }
+enum VisibleStage { ASSET_ACCUMULATION SINGLE_ASSET_INVOCATION STITCHING }
+enum DraftStatus { DRAFT CONFIRMED SUPERSEDED ARCHIVED }
+enum CandidateStatus { PENDING_REVIEW EDITING APPROVED IGNORED CONVERTED FAILED }
+enum NodeType { CONTEXT CLAIM REASON EXPLANATION EXAMPLE CONTRAST CONDITION ACTION RESULT CONCLUSION TRANSITION OTHER }
+enum ExpressionUnitType { PHRASE_CHUNK SENTENCE_PATTERN CONNECTOR LEXICAL_ANCHOR }
+enum ImportBatchStatus { PENDING VALIDATING READY PARSING PARTIAL_SUCCESS COMPLETED FAILED CANCELLED }
+enum ImportFileStatus { PENDING VALIDATING READY PARSING PARSED PARSE_FAILED EXACT_DUPLICATE NEAR_DUPLICATE SKIPPED_UNSUPPORTED WAITING_AI AI_PROCESSING AI_FAILED REVIEW_READY }
+enum DuplicateResolution { PENDING SKIP KEEP_SEPARATE MARK_AS_REVISION }
+enum SourceBlockType { INSTRUCTION ASSET_FLOW RETRIEVAL_CUE PHRASE_CHUNK SENTENCE_PATTERN QUESTION_SEED EXERCISE TEACHER_NOTE PRONUNCIATION_NOTE OTHER }
+enum AssetLearningState { LEARNING RECALLABLE CALLABLE STITCHABLE TRANSFERABLE NEEDS_REINFORCEMENT ARCHIVED }
+enum QuestionSource { COURSE AI_GENERATED USER_REAL MANUAL }
+enum QuestionDistance { L1 L2 L3 L4 }
+enum QuestionPlanStatus { DRAFT VALIDATED INVALID SUPERSEDED }
+enum AssetRole { PRIMARY SECONDARY }
+enum TrainingTaskStatus { PENDING IN_PROGRESS COMPLETED SKIPPED INVALIDATED }
+enum AssetPracticeStep { READING KEYWORD_RECALL LOGIC_SKELETON_RECALL NO_HINT_RECALL ANCHOR_TEXT CLOZE_RECALL CUMULATIVE_RECALL }
+enum PracticeModality { READ_ONLY ORAL_SELF_REPORT TEXT }
+enum PracticeAttemptStatus { DRAFT SAVING COMPLETED ABANDONED INVALIDATED }
+enum CompletionRating { COMPLETE BASIC PARTIAL NOT_COMPLETED }
+enum DifficultyRating { EASY RIGHT DIFFICULT }
+enum HintLevel { H0_NONE H1_ANGLE H2_ASSET_NAME H3_LOGIC_NODES H4_ENGLISH_CHUNKS H5_FULL_FLOW }
+enum SessionStatus { PREPARING QUESTION_READY FIRST_ANSWER_SUBMITTED FOLLOW_UP_IN_PROGRESS FOLLOW_UP_COMPLETE SECOND_ANSWER_SUBMITTED EVALUATION_PENDING REVIEW_READY COMPLETED INVALIDATED ABANDONED }
+enum AnswerType { FIRST_ANSWER FOLLOW_UP_ANSWER SECOND_ANSWER }
+enum FollowUpStatus { READY ANSWERED SKIPPED INVALIDATED ENDED }
+enum AiRole { R1 R2 R3 R4 R4A R5 R6 R7A R7B R7C }
+enum AiTaskStatus { QUEUED RUNNING PROVIDER_RETRYING STRUCTURE_REPAIRING BUSINESS_REPAIRING VALIDATED AWAITING_USER_CONFIRMATION NEEDS_REVIEW FAILED_RETRYABLE FAILED_TERMINAL SUPERSEDED CANCELLED }
+enum AttemptType { INITIAL PROVIDER_RETRY PROVIDER_FALLBACK STRUCTURE_REPAIR BUSINESS_REPAIR LOCAL_FALLBACK }
+enum ReleaseStatus { DRAFT CANDIDATE APPROVED ACTIVE DEPRECATED REVOKED }
+enum BackupStatus { CREATING COMPLETED FAILED RESTORING RESTORED }
+
+model User {
+  id                  String   @id @default(cuid())
+  displayName         String   @default("Local User")
+  dailyTargetMinutes  Int      @default(30)
+  dailyNewAssetTarget Int      @default(3)
+  dailyNewAssetMax    Int      @default(4)
+  activeAssetLimit    Int      @default(8)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+  settings            UserSetting[]
+  providerConfigs     AiProviderConfig[]
+  sourceCollections   SourceCollection[]
+  importBatches       ImportBatch[]
+  sourceAssets        SourceAsset[]
+  personalAssets      PersonalAsset[]
+  assetStates         UserAssetState[]
+  dailyPlans          DailyPlan[]
+  assetPracticeSessions AssetPracticeSession[]
+  trainingSessions    TrainingSession[]
+  backups             BackupRecord[]
+}
+
+model UserSetting {
+  id        String   @id @default(cuid())
+  userId    String
+  key       String
+  valueJson String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@unique([userId, key])
+}
+
+model AiProviderConfig {
+  id              String   @id @default(cuid())
+  userId          String
+  providerKey     String
+  baseUrl         String?
+  modelName       String
+  secretRef       String?
+  maskedKeySuffix String?
+  timeoutMs       Int      @default(60000)
+  retryCount      Int      @default(1)
+  isFallback      Boolean  @default(false)
+  isEnabled       Boolean  @default(false)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@unique([userId, providerKey, modelName])
+}
+
+model SourceCollection {
+  id        String   @id @default(cuid())
+  userId    String
+  title     String
+  term      String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  batches   ImportBatch[]
+  documents SourceDocument[]
+}
+
+model ImportBatch {
+  id                 String            @id @default(cuid())
+  userId             String
+  sourceCollectionId String?
+  sourceType         String
+  status             ImportBatchStatus @default(PENDING)
+  originalName       String?
+  createdAt          DateTime          @default(now())
+  updatedAt          DateTime          @updatedAt
+  user               User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sourceCollection   SourceCollection? @relation(fields: [sourceCollectionId], references: [id], onDelete: SetNull)
+  files              ImportBatchFile[]
+  documents          SourceDocument[]
+  @@index([userId, status, createdAt])
+}
+
+model ImportBatchFile {
+  id                 String           @id @default(cuid())
+  importBatchId      String
+  relativePath       String
+  originalFileName   String
+  extension          String
+  sizeBytes          Int
+  exactFileHash      String?
+  normalizedTextHash String?
+  status             ImportFileStatus @default(PENDING)
+  skipReason         String?
+  createdAt          DateTime         @default(now())
+  updatedAt          DateTime         @updatedAt
+  importBatch        ImportBatch      @relation(fields: [importBatchId], references: [id], onDelete: Cascade)
+  sourceDocument     SourceDocument?
+  @@unique([importBatchId, relativePath])
+  @@index([exactFileHash])
+}
+
+model SourceDocument {
+  id                 String   @id @default(cuid())
+  sourceCollectionId String?
+  importBatchId      String?
+  importBatchFileId  String?  @unique
+  title              String
+  documentType       String
+  localFilePath      String?
+  relativePath       String?
+  originalFileName   String?
+  exactFileHash      String?
+  parsedTextHash     String?
+  parseStatus        String   @default("PENDING")
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+  sourceCollection   SourceCollection? @relation(fields: [sourceCollectionId], references: [id], onDelete: SetNull)
+  importBatch        ImportBatch?      @relation(fields: [importBatchId], references: [id], onDelete: SetNull)
+  importBatchFile    ImportBatchFile?  @relation(fields: [importBatchFileId], references: [id], onDelete: SetNull)
+  segments           SourceSegment[]
+  candidates         CandidateAsset[]
+  duplicatesFrom     SourceDocumentDuplicate[] @relation("dupFrom")
+  duplicatesTo       SourceDocumentDuplicate[] @relation("dupTo")
+}
+
+model SourceDocumentDuplicate {
+  id             String              @id @default(cuid())
+  fromDocumentId String
+  toDocumentId   String
+  matchType      String
+  similarity     Float?
+  resolution     DuplicateResolution @default(PENDING)
+  createdAt      DateTime            @default(now())
+  fromDocument   SourceDocument      @relation("dupFrom", fields: [fromDocumentId], references: [id], onDelete: Cascade)
+  toDocument     SourceDocument      @relation("dupTo", fields: [toDocumentId], references: [id], onDelete: Cascade)
+  @@unique([fromDocumentId, toDocumentId, matchType])
+}
+
+model SourceSegment {
+  id                         String          @id @default(cuid())
+  sourceDocumentId           String
+  sequence                   Int
+  heading                    String?
+  blockType                  SourceBlockType @default(OTHER)
+  eligibleForAssetExtraction Boolean         @default(false)
+  text                       String
+  textHash                   String
+  createdAt                  DateTime        @default(now())
+  sourceDocument             SourceDocument  @relation(fields: [sourceDocumentId], references: [id], onDelete: Cascade)
+  annotations                SourceSpanAnnotation[]
+  evidence                   CandidateEvidence[]
+  @@unique([sourceDocumentId, sequence])
+}
+
+model SourceSpanAnnotation {
+  id              String   @id @default(cuid())
+  sourceSegmentId String
+  startOffset     Int
+  endOffset       Int
+  annotationType  String
+  valueJson       String?
+  sourceSegment   SourceSegment @relation(fields: [sourceSegmentId], references: [id], onDelete: Cascade)
+  @@index([sourceSegmentId, startOffset])
+}
+
+model CandidateAsset {
+  id               String          @id @default(cuid())
+  sourceDocumentId String
+  title            String
+  coreIdea         String
+  flowText         String
+  status           CandidateStatus @default(PENDING_REVIEW)
+  modelDraftJson   String?
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+  sourceDocument   SourceDocument  @relation(fields: [sourceDocumentId], references: [id], onDelete: Cascade)
+  nodes            CandidateAssetNode[]
+  evidence         CandidateEvidence[]
+}
+
+model CandidateAssetNode {
+  id               String   @id @default(cuid())
+  candidateAssetId String
+  sequence         Int
+  nodeType         NodeType
+  text             String
+  candidateAsset   CandidateAsset @relation(fields: [candidateAssetId], references: [id], onDelete: Cascade)
+  @@unique([candidateAssetId, sequence])
+}
+
+model CandidateEvidence {
+  id               String @id @default(cuid())
+  candidateAssetId String
+  sourceSegmentId  String
+  startOffset      Int
+  endOffset        Int
+  candidateAsset   CandidateAsset @relation(fields: [candidateAssetId], references: [id], onDelete: Cascade)
+  sourceSegment    SourceSegment  @relation(fields: [sourceSegmentId], references: [id], onDelete: Cascade)
+}
+
+model SourceAsset {
+  id        String   @id @default(cuid())
+  userId    String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  versions  SourceAssetVersion[]
+  personalAssets PersonalAsset[]
+}
+
+model SourceAssetVersion {
+  id            String      @id @default(cuid())
+  sourceAssetId String
+  version       Int
+  title         String
+  coreIdea      String
+  coreFlow      String
+  extendedFlow  String?
+  sourceType    String
+  isAiReconstructed Boolean @default(false)
+  status        DraftStatus @default(DRAFT)
+  confirmedAt   DateTime?
+  createdAt     DateTime    @default(now())
+  sourceAsset   SourceAsset @relation(fields: [sourceAssetId], references: [id], onDelete: Cascade)
+  nodes         SourceAssetNode[]
+  expressionUnits SourceExpressionUnit[]
+  @@unique([sourceAssetId, version])
+}
+
+model SourceAssetNode {
+  id                   String   @id @default(cuid())
+  sourceAssetVersionId String
+  sequence             Int
+  nodeType             NodeType
+  text                 String
+  sourceAssetVersion   SourceAssetVersion @relation(fields: [sourceAssetVersionId], references: [id], onDelete: Cascade)
+  personalMaps         PersonalNodeSourceMap[]
+  @@unique([sourceAssetVersionId, sequence])
+}
+
+model SourceExpressionUnit {
+  id                   String             @id @default(cuid())
+  sourceAssetVersionId String
+  unitType             ExpressionUnitType
+  text                 String
+  retrievalCue         String?
+  sourceAssetVersion   SourceAssetVersion @relation(fields: [sourceAssetVersionId], references: [id], onDelete: Cascade)
+}
+
+model PersonalAsset {
+  id            String   @id @default(cuid())
+  userId        String
+  sourceAssetId String
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  user          User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sourceAsset   SourceAsset @relation(fields: [sourceAssetId], references: [id], onDelete: Restrict)
+  versions      PersonalAssetVersion[]
+  state         UserAssetState?
+  practiceSessions AssetPracticeSession[]
+  @@unique([userId, sourceAssetId])
+}
+
+model PersonalAssetVersion {
+  id              String      @id @default(cuid())
+  personalAssetId String
+  version         Int
+  triggerName     String
+  coreIdea        String
+  coreFlow        String
+  extendedFlow    String?
+  scenario        String?
+  status          DraftStatus @default(DRAFT)
+  confirmedAt     DateTime?
+  createdAt       DateTime    @default(now())
+  personalAsset   PersonalAsset @relation(fields: [personalAssetId], references: [id], onDelete: Cascade)
+  nodes           PersonalAssetNode[]
+  expressionUnits PersonalExpressionUnit[]
+  flowSpans       AssetFlowSpan[]
+  practiceSessions AssetPracticeSession[]
+  @@unique([personalAssetId, version])
+}
+
+model PersonalAssetNode {
+  id                     String   @id @default(cuid())
+  personalAssetVersionId String
+  sequence               Int
+  nodeType               NodeType
+  text                   String
+  personalAssetVersion   PersonalAssetVersion @relation(fields: [personalAssetVersionId], references: [id], onDelete: Cascade)
+  sourceMaps             PersonalNodeSourceMap[]
+  flowSpans              AssetFlowSpan[]
+  @@unique([personalAssetVersionId, sequence])
+}
+
+model PersonalExpressionUnit {
+  id                     String             @id @default(cuid())
+  personalAssetVersionId String
+  unitType               ExpressionUnitType
+  text                   String
+  retrievalCue           String?
+  personalAssetVersion   PersonalAssetVersion @relation(fields: [personalAssetVersionId], references: [id], onDelete: Cascade)
+}
+
+model PersonalNodeSourceMap {
+  id                    String @id @default(cuid())
+  personalAssetNodeId   String
+  sourceAssetNodeId     String
+  mapType               String
+  personalAssetNode     PersonalAssetNode @relation(fields: [personalAssetNodeId], references: [id], onDelete: Cascade)
+  sourceAssetNode       SourceAssetNode   @relation(fields: [sourceAssetNodeId], references: [id], onDelete: Cascade)
+  @@unique([personalAssetNodeId, sourceAssetNodeId, mapType])
+}
+
+model AssetFlowSpan {
+  id                     String @id @default(cuid())
+  personalAssetVersionId String
+  personalAssetNodeId    String
+  sequence               Int
+  startOffset            Int
+  endOffset              Int
+  textHash               String
+  personalAssetVersion   PersonalAssetVersion @relation(fields: [personalAssetVersionId], references: [id], onDelete: Cascade)
+  personalAssetNode      PersonalAssetNode    @relation(fields: [personalAssetNodeId], references: [id], onDelete: Cascade)
+  @@unique([personalAssetVersionId, sequence])
+  @@index([personalAssetVersionId, startOffset])
+}
+
+model UserAssetState {
+  id              String             @id @default(cuid())
+  userId          String
+  personalAssetId String             @unique
+  internalStage   InternalStage      @default(S0)
+  visibleStage    VisibleStage       @default(ASSET_ACCUMULATION)
+  learningState   AssetLearningState @default(LEARNING)
+  understanding   Int                @default(0)
+  recall          Int                @default(0)
+  invocation      Int                @default(0)
+  flexibility     Int                @default(0)
+  stitching       Int                @default(0)
+  transfer        Int                @default(0)
+  nextReviewAt    DateTime?
+  isActive        Boolean            @default(false)
+  updatedAt       DateTime           @updatedAt
+  user            User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  personalAsset   PersonalAsset      @relation(fields: [personalAssetId], references: [id], onDelete: Cascade)
+  @@index([userId, learningState, nextReviewAt])
+}
+
+model Question {
+  id        String         @id @default(cuid())
+  text      String
+  source    QuestionSource
+  createdAt DateTime       @default(now())
+  plans     QuestionPlan[]
+}
+
+model QuestionPlan {
+  id            String             @id @default(cuid())
+  questionId    String
+  version       Int
+  questionText  String
+  distance      QuestionDistance
+  status        QuestionPlanStatus @default(DRAFT)
+  supportProofJson String?
+  createdAt     DateTime           @default(now())
+  question      Question           @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  assets        QuestionPlanAsset[]
+  obligations   QuestionObligation[]
+  sessions      TrainingSession[]
+  @@unique([questionId, version])
+}
+
+model QuestionPlanAsset {
+  id                     String    @id @default(cuid())
+  questionPlanId         String
+  personalAssetVersionId String
+  role                   AssetRole
+  questionPlan           QuestionPlan @relation(fields: [questionPlanId], references: [id], onDelete: Cascade)
+  personalAssetVersionIdSnapshot String?
+  @@unique([questionPlanId, role])
+}
+
+model QuestionObligation {
+  id             String  @id @default(cuid())
+  questionPlanId String
+  sequence       Int
+  obligationType String
+  isRequired     Boolean @default(true)
+  description    String
+  questionPlan   QuestionPlan @relation(fields: [questionPlanId], references: [id], onDelete: Cascade)
+  supports       QuestionSupportMapping[]
+  @@unique([questionPlanId, sequence])
+}
+
+model QuestionSupportMapping {
+  id                   String @id @default(cuid())
+  questionObligationId String
+  supportType          String
+  supportReferenceId   String
+  explanation          String?
+  questionObligation   QuestionObligation @relation(fields: [questionObligationId], references: [id], onDelete: Cascade)
+}
+
+model DailyPlan {
+  id        String   @id @default(cuid())
+  userId    String
+  planDate  DateTime
+  status    String   @default("DRAFT")
+  reason    String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tasks     TrainingTask[]
+  @@unique([userId, planDate])
+}
+
+model TrainingTask {
+  id              String             @id @default(cuid())
+  dailyPlanId     String
+  taskType        String
+  sequence        Int
+  status          TrainingTaskStatus @default(PENDING)
+  targetEntityId  String?
+  reason          String?
+  eligibilityJson String?
+  dailyPlan       DailyPlan @relation(fields: [dailyPlanId], references: [id], onDelete: Cascade)
+  practiceSessions AssetPracticeSession[]
+  @@unique([dailyPlanId, sequence])
+}
+
+model AssetPracticeSession {
+  id                     String   @id @default(cuid())
+  userId                 String
+  personalAssetId        String
+  personalAssetVersionId String
+  trainingTaskId         String?
+  currentStep            AssetPracticeStep @default(READING)
+  status                 String   @default("IN_PROGRESS")
+  startedAt              DateTime @default(now())
+  completedAt            DateTime?
+  updatedAt              DateTime @updatedAt
+  user                   User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  personalAsset          PersonalAsset @relation(fields: [personalAssetId], references: [id], onDelete: Restrict)
+  personalAssetVersion   PersonalAssetVersion @relation(fields: [personalAssetVersionId], references: [id], onDelete: Restrict)
+  trainingTask           TrainingTask? @relation(fields: [trainingTaskId], references: [id], onDelete: SetNull)
+  attempts               AssetPracticeAttempt[]
+}
+
+model AssetPracticeAttempt {
+  id                    String                @id @default(cuid())
+  assetPracticeSessionId String
+  stepType              AssetPracticeStep
+  modality              PracticeModality
+  status                PracticeAttemptStatus @default(DRAFT)
+  oralAttemptConfirmed  Boolean               @default(false)
+  completionRating      CompletionRating?
+  difficultyRating      DifficultyRating?
+  highestHintLevel      HintLevel             @default(H0_NONE)
+  textAnswer            String?
+  durationMs            Int?
+  idempotencyKey        String                @unique
+  startedAt             DateTime              @default(now())
+  completedAt           DateTime?
+  assetPracticeSession  AssetPracticeSession  @relation(fields: [assetPracticeSessionId], references: [id], onDelete: Cascade)
+  @@index([assetPracticeSessionId, stepType, createdAt])
+}
+
+model TrainingSession {
+  id              String        @id @default(cuid())
+  userId          String
+  questionPlanId  String
+  releaseBundleId String?
+  businessVersion Int           @default(1)
+  status          SessionStatus @default(PREPARING)
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  user            User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  questionPlan    QuestionPlan  @relation(fields: [questionPlanId], references: [id], onDelete: Restrict)
+  releaseBundle   AiReleaseBundle? @relation(fields: [releaseBundleId], references: [id], onDelete: SetNull)
+  answers         TrainingAnswer[]
+  followUps       FollowUpItem[]
+  hints           HintEvent[]
+  checkpoints     SessionCheckpoint[]
+  aiTasks         AiTask[]
+  usageResults    AssetUsageResult[]
+  evaluationResults AnswerEvaluationResult[]
+  comparisonResult AnswerComparisonResult?
+}
+
+model TrainingAnswer {
+  id                String     @id @default(cuid())
+  trainingSessionId String
+  answerType        AnswerType
+  sequence          Int
+  text              String
+  normalizedHash    String
+  idempotencyKey    String     @unique
+  createdAt         DateTime   @default(now())
+  trainingSession   TrainingSession @relation(fields: [trainingSessionId], references: [id], onDelete: Cascade)
+  units             AnswerUnit[]
+  @@unique([trainingSessionId, answerType, sequence])
+}
+
+model AnswerUnit {
+  id               String @id @default(cuid())
+  trainingAnswerId String
+  sequence         Int
+  unitType         String
+  startOffset      Int
+  endOffset        Int
+  text             String
+  trainingAnswer   TrainingAnswer @relation(fields: [trainingAnswerId], references: [id], onDelete: Cascade)
+  @@unique([trainingAnswerId, sequence])
+}
+
+model FollowUpItem {
+  id                String         @id @default(cuid())
+  trainingSessionId String
+  issuedIndex       Int
+  questionText      String
+  supportProofJson  String
+  status            FollowUpStatus @default(READY)
+  endReason         String?
+  createdAt         DateTime       @default(now())
+  trainingSession   TrainingSession @relation(fields: [trainingSessionId], references: [id], onDelete: Cascade)
+  @@unique([trainingSessionId, issuedIndex])
+}
+
+model HintEvent {
+  id                String    @id @default(cuid())
+  trainingSessionId String
+  level             HintLevel
+  context           String
+  createdAt         DateTime  @default(now())
+  trainingSession   TrainingSession @relation(fields: [trainingSessionId], references: [id], onDelete: Cascade)
+}
+
+model AssetUsageResult {
+  id                String   @id @default(cuid())
+  trainingSessionId String
+  answerId          String
+  status            String
+  finalLevel        Int?
+  resultJson        String?
+  isCurrent         Boolean  @default(true)
+  createdAt         DateTime @default(now())
+  trainingSession   TrainingSession @relation(fields: [trainingSessionId], references: [id], onDelete: Cascade)
+  @@index([trainingSessionId, answerId, isCurrent])
+}
+
+model AnswerEvaluationResult {
+  id                String   @id @default(cuid())
+  trainingSessionId String
+  answerId          String
+  status            String
+  totalScore        Int?
+  performanceLabel  String?
+  resultJson        String?
+  isCurrent         Boolean  @default(true)
+  createdAt         DateTime @default(now())
+  trainingSession   TrainingSession @relation(fields: [trainingSessionId], references: [id], onDelete: Cascade)
+  ratings           AnswerDimensionRating[]
+  @@index([trainingSessionId, answerId, isCurrent])
+}
+
+model AnswerDimensionRating {
+  id                       String @id @default(cuid())
+  answerEvaluationResultId String
+  dimension                String
+  rating                   Int
+  source                   String
+  evidenceJson             String?
+  answerEvaluationResult   AnswerEvaluationResult @relation(fields: [answerEvaluationResultId], references: [id], onDelete: Cascade)
+  @@unique([answerEvaluationResultId, dimension])
+}
+
+model AnswerComparisonResult {
+  id                     String   @id @default(cuid())
+  trainingSessionId      String   @unique
+  factsJson              String
+  interpretationJson     String?
+  factsStatus            String
+  interpretationStatus   String
+  finalDisplayStatus     String
+  createdAt              DateTime @default(now())
+  trainingSession        TrainingSession @relation(fields: [trainingSessionId], references: [id], onDelete: Cascade)
+}
+
+model AiReleaseBundle {
+  id          String        @id @default(cuid())
+  version     String        @unique
+  status      ReleaseStatus @default(DRAFT)
+  bundleHash  String        @unique
+  createdAt   DateTime      @default(now())
+  activatedAt DateTime?
+  sessions    TrainingSession[]
+  prompts     AiReleasePrompt[]
+  tasks       AiTask[]
+}
+
+model PromptDefinition {
+  id        String   @id @default(cuid())
+  key       String
+  version   String
+  content   String
+  schemaJson String?
+  createdAt DateTime @default(now())
+  releases  AiReleasePrompt[]
+  @@unique([key, version])
+}
+
+model AiReleasePrompt {
+  id                 String @id @default(cuid())
+  aiReleaseBundleId  String
+  promptDefinitionId String
+  role               AiRole
+  aiReleaseBundle    AiReleaseBundle @relation(fields: [aiReleaseBundleId], references: [id], onDelete: Cascade)
+  promptDefinition   PromptDefinition @relation(fields: [promptDefinitionId], references: [id], onDelete: Restrict)
+  @@unique([aiReleaseBundleId, role])
+}
+
+model AiTask {
+  id                String       @id @default(cuid())
+  trainingSessionId String?
+  releaseBundleId   String
+  role              AiRole
+  entityType        String
+  entityId          String
+  entityVersion     Int
+  inputFingerprint  String
+  status            AiTaskStatus @default(QUEUED)
+  resultReference   String?
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
+  trainingSession   TrainingSession? @relation(fields: [trainingSessionId], references: [id], onDelete: SetNull)
+  releaseBundle     AiReleaseBundle @relation(fields: [releaseBundleId], references: [id], onDelete: Restrict)
+  attempts          AiTaskAttempt[]
+  issues            AiValidationIssue[]
+  @@unique([role, entityId, entityVersion, releaseBundleId, inputFingerprint])
+}
+
+model AiTaskAttempt {
+  id          String      @id @default(cuid())
+  aiTaskId    String
+  attemptNo   Int
+  attemptType AttemptType
+  provider    String?
+  model       String?
+  status      String
+  rawResponse String?
+  parsedJson  String?
+  createdAt   DateTime    @default(now())
+  aiTask      AiTask      @relation(fields: [aiTaskId], references: [id], onDelete: Cascade)
+  @@unique([aiTaskId, attemptNo])
+}
+
+model AiValidationIssue {
+  id        String   @id @default(cuid())
+  aiTaskId  String
+  stage     String
+  code      String
+  severity  String
+  fieldPath String?
+  detail    String?
+  createdAt DateTime @default(now())
+  aiTask    AiTask   @relation(fields: [aiTaskId], references: [id], onDelete: Cascade)
+}
+
+model SessionCheckpoint {
+  id                String   @id @default(cuid())
+  trainingSessionId String
+  checkpointType    String
+  payloadJson       String?
+  createdAt         DateTime @default(now())
+  trainingSession   TrainingSession @relation(fields: [trainingSessionId], references: [id], onDelete: Cascade)
+  @@index([trainingSessionId, createdAt])
+}
+
+model BackupRecord {
+  id           String       @id @default(cuid())
+  userId       String
+  filePath     String
+  status       BackupStatus @default(CREATING)
+  contentHash  String?
+  sizeBytes    Int?
+  errorMessage String?
+  createdAt    DateTime     @default(now())
+  restoredAt   DateTime?
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+}

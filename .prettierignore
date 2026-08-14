@@ -1,0 +1,12 @@
+.next/
+coverage/
+data/
+docs/
+node_modules/
+next-env.d.ts
+prisma/schema.prisma
+release/
+tasks/
+versioned_sources/
+FILE_HASHES.json
+.speech-asset-lab-server.json
