@@ -39,12 +39,20 @@ https://speechasset.learnbox.cc
 | Python / Poppler / Tesseract / Windows OCR | 本次不发布；后续单独选择 OCR 服务 | 排除 |
 | 本机服务访问 | Cloudflare Access 保护的子域名 | 运行配置已完成，待部署验证 |
 
+## 5. Workers Builds 配置
+
+- Worker 名称与 `wrangler.jsonc` 保持一致：`speech-asset-lab`。
+- Cloudflare Workers Builds 的构建命令：`pnpm run cloud:build`。
+- Cloudflare Workers Builds 的部署命令：`npx wrangler deploy`。
+- 构建变量：`NEXT_PUBLIC_APP_VARIANT=cloud-trial`、`APP_VARIANT=cloud-trial`。
+- 首次使用新构建命令和新依赖锁时应清除构建缓存；该操作不影响代码、域名或生产数据。
+
 ## 6. 当前工程风险
 
 - 本机 Windows 下载 Cloudflare `workerd` 可选二进制连续超时，已在 10 分钟后停止重试。因此本机 OpenNext/Worker 预览尚未完成；Next.js 生产构建、Cloud Prisma 生成、类型检查、lint 和格式检查已通过。下一步必须由 Cloudflare Workers 的 Linux 构建执行 `cloud:build`，作为最终 Workers 打包验证。
 - Supabase 生产库仍为空。执行 Prisma PostgreSQL migration 与种子前，必须在本机受保护环境或 Cloudflare secret 中配置连接串，禁止在聊天、GitHub 或前端变量中传递数据库密码。
 
-## 5. 发布门禁
+## 7. 发布门禁
 
 - 不公开来源原件、备份、数据库、日志或 API Key。
 - 线上试用版不展示导入、PDF 解析、OCR 或恢复操作。
