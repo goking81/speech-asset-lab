@@ -94,11 +94,11 @@ export function TodayPlanPage() {
   useEffect(() => {
     void fetch('/api/plans/today')
       .then(async (response) => {
-        const result = (await response.json()) as {
+        const result = await readJsonResponse<{
           plan?: TodayPlan;
           coach?: CoachView;
           error?: string;
-        };
+        }>(response, '线上内置资产库正在配置，请稍后刷新。');
         if (!response.ok) throw new Error(result.error ?? '无法读取今日计划。');
         const nextPlan = result.plan ?? null;
         setPlan(nextPlan);
@@ -113,7 +113,10 @@ export function TodayPlanPage() {
   useEffect(() => {
     void fetch('/api/assets')
       .then(async (response) => {
-        const result = (await response.json()) as { assets?: AssetRecord[]; error?: string };
+        const result = await readJsonResponse<{ assets?: AssetRecord[]; error?: string }>(
+          response,
+          '暂时无法读取资产详情。',
+        );
         if (!response.ok) throw new Error(result.error ?? '无法读取资产库。');
         setAssets(result.assets ?? []);
       })
@@ -127,11 +130,11 @@ export function TodayPlanPage() {
     setCoachStatus('正在请求 AI 补充说明。');
     try {
       const response = await fetch('/api/plans/today/coach', { method: 'POST' });
-      const result = (await response.json()) as {
+      const result = await readJsonResponse<{
         plan?: TodayPlan;
         coach?: CoachView;
         error?: string;
-      };
+      }>(response, '暂时无法请求 AI 补充说明。');
       if (!response.ok || !result.coach) {
         throw new Error(result.error ?? '无法请求 AI 补充说明。');
       }
@@ -162,7 +165,10 @@ export function TodayPlanPage() {
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ trainingTaskId: task.id }),
       });
-      const result = (await response.json()) as { sessionId?: string; error?: string };
+      const result = await readJsonResponse<{ sessionId?: string; error?: string }>(
+        response,
+        '暂时无法建立资产训练会话。',
+      );
       if (!response.ok || !result.sessionId) {
         throw new Error(result.error ?? '无法建立资产训练会话。');
       }
@@ -215,6 +221,20 @@ export function TodayPlanPage() {
       )}
     </main>
   );
+}
+
+async function readJsonResponse<T extends { error?: string }>(response: Response, fallback: string) {
+  const body = await response.text();
+
+  if (!body.trim()) {
+    return { error: fallback } as T;
+  }
+
+  try {
+    return JSON.parse(body) as T;
+  } catch {
+    return { error: fallback } as T;
+  }
 }
 
 function TodayPracticeWorkspace({

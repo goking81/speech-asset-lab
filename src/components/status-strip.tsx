@@ -11,7 +11,10 @@ export function StatusStrip() {
   useEffect(() => {
     void fetch('/api/ai/config')
       .then(async (response) => {
-        const result = (await response.json()) as { configs?: Array<{ isEnabled: boolean }> };
+        const body = await response.text();
+        const result = body.trim()
+          ? (JSON.parse(body) as { configs?: Array<{ isEnabled: boolean }> })
+          : {};
         setAiConfigured(
           response.ok && (result.configs?.some((config) => config.isEnabled) ?? false),
         );

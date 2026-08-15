@@ -1,9 +1,24 @@
 import { PrismaPg } from '@prisma/adapter-pg';
 import { PrismaClient } from '@prisma/client';
 
+import { isCloudTrialRuntime } from '@/lib/runtime-mode';
+
+/** 线上试用版未接入 PostgreSQL 时，向路由返回可处理的配置错误。 */
+export class DatabaseConfigurationError extends Error {
+  constructor() {
+    super('线上内置资产库正在配置，请稍后刷新。');
+    this.name = 'DatabaseConfigurationError';
+  }
+}
+
 export function createDatabaseClient(databaseUrl?: string) {
-  const resolvedDatabaseUrl =
-    databaseUrl ?? process.env.DATABASE_URL ?? 'file:../data/speech-asset-lab.db';
+  const configuredDatabaseUrl = databaseUrl ?? process.env.DATABASE_URL;
+
+  if (!configuredDatabaseUrl && isCloudTrialRuntime()) {
+    throw new DatabaseConfigurationError();
+  }
+
+  const resolvedDatabaseUrl = configuredDatabaseUrl ?? 'file:../data/speech-asset-lab.db';
 
   if (
     resolvedDatabaseUrl.startsWith('postgresql://') ||
