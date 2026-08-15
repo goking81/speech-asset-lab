@@ -1,4 +1,6 @@
 import { createHash } from 'node:crypto';
+import { mkdir, writeFile } from 'node:fs/promises';
+import path from 'node:path';
 
 import { PrismaClient } from '@prisma/client';
 import pg from 'pg';
@@ -9,15 +11,24 @@ const LOCAL_USER_ID = 'local-user';
 // 线上试用版沿用单用户固定 id，保证既有单用户训练服务无需改变产品规则。
 const TRIAL_USER_ID = LOCAL_USER_ID;
 const DEFAULT_LOCAL_DATABASE_URL = 'file:../data/speech-asset-lab.db';
+const SQL_CHUNK_SIZE = 60_000;
+const SQL_STATEMENT_LIMIT = 80;
 
 function parseArguments(argumentsList) {
-  const allowed = new Set(['--dry-run']);
+  let sqlOutputDirectory = null;
+
   for (const argument of argumentsList) {
-    if (!allowed.has(argument)) {
-      throw new Error(`不支持的参数：${argument}`);
+    if (argument === '--dry-run') continue;
+    if (argument.startsWith('--sql-output-dir=')) {
+      const value = argument.slice('--sql-output-dir='.length).trim();
+      if (!value) throw new Error('--sql-output-dir 必须提供一个空目录。');
+      sqlOutputDirectory = path.resolve(process.cwd(), value);
+      continue;
     }
+    throw new Error(`不支持的参数：${argument}`);
   }
-  return { dryRun: argumentsList.includes('--dry-run') };
+
+  return { dryRun: argumentsList.includes('--dry-run'), sqlOutputDirectory };
 }
 
 function sha256(value) {
@@ -270,8 +281,76 @@ async function seedTrialAssets(client, localUser, assets) {
   }
 }
 
+/**
+ * 将试用版数据写为可审阅的 SQL 批次，供受控的 Supabase 管理连接执行。
+ * 不写入任何来源原件、导入记录、备份、日志或 AI 原始输出。
+ */
+class SqlChunkWriter {
+  constructor(outputDirectory) {
+    this.outputDirectory = outputDirectory;
+    this.statements = [];
+    this.currentSize = 0;
+    this.chunkCount = 0;
+  }
+
+  async initialize() {
+    await mkdir(this.outputDirectory, { recursive: false });
+  }
+
+  async query(sql, values) {
+    if (!Array.isArray(values)) {
+      throw new Error('SQL 导出只支持带参数的 INSERT 语句。');
+    }
+
+    const rawStatement = sql.replace(/\$(\d+)/g, (_, valueIndex) => {
+      const value = values[Number(valueIndex) - 1];
+      return sqlLiteral(value);
+    });
+    const statement = rawStatement.trimEnd().endsWith(';')
+      ? rawStatement
+      : `${rawStatement};`;
+
+    if (
+      this.statements.length > 0 &&
+      (this.currentSize + statement.length > SQL_CHUNK_SIZE ||
+        this.statements.length >= SQL_STATEMENT_LIMIT)
+    ) {
+      await this.flush();
+    }
+
+    this.statements.push(statement);
+    this.currentSize += statement.length;
+    return { rows: [] };
+  }
+
+  async finalize() {
+    await this.flush();
+    return this.chunkCount;
+  }
+
+  async flush() {
+    if (this.statements.length === 0) return;
+
+    this.chunkCount += 1;
+    const fileName = `${String(this.chunkCount).padStart(3, '0')}.sql`;
+    const content = `BEGIN;\n${this.statements.join('\n')}\nCOMMIT;\n`;
+    await writeFile(path.join(this.outputDirectory, fileName), content, 'utf8');
+    this.statements = [];
+    this.currentSize = 0;
+  }
+}
+
+function sqlLiteral(value) {
+  if (value === null || value === undefined) return 'NULL';
+  if (value instanceof Date) return `'${value.toISOString().replaceAll("'", "''")}'`;
+  if (typeof value === 'boolean') return value ? 'TRUE' : 'FALSE';
+  if (typeof value === 'number') return String(value);
+  if (typeof value === 'string') return `'${value.replaceAll("'", "''")}'`;
+  throw new Error(`不支持导出的 SQL 值类型：${typeof value}`);
+}
+
 async function main() {
-  const { dryRun } = parseArguments(process.argv.slice(2));
+  const { dryRun, sqlOutputDirectory } = parseArguments(process.argv.slice(2));
   const localDatabaseUrl = process.env.LOCAL_DATABASE_URL ?? DEFAULT_LOCAL_DATABASE_URL;
   const localPrisma = new PrismaClient({ datasources: { db: { url: localDatabaseUrl } } });
 
@@ -291,6 +370,17 @@ async function main() {
 
     if (dryRun) {
       process.stdout.write(`${JSON.stringify({ dryRun: true, summary }, null, 2)}\n`);
+      return;
+    }
+
+    if (sqlOutputDirectory) {
+      const writer = new SqlChunkWriter(sqlOutputDirectory);
+      await writer.initialize();
+      await seedTrialAssets(writer, localUser, assets);
+      const sqlChunks = await writer.finalize();
+      process.stdout.write(
+        `${JSON.stringify({ generated: true, sqlChunks, sqlOutputDirectory, summary }, null, 2)}\n`,
+      );
       return;
     }
 
