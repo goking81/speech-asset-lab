@@ -7,9 +7,10 @@ import {
 import { createDatabaseClient } from '@/server/db/client';
 
 export async function GET() {
-  const prisma = createDatabaseClient();
+  let prisma: ReturnType<typeof createDatabaseClient> | undefined;
 
   try {
+    prisma = createDatabaseClient();
     const assets = await prisma.sourceAsset.findMany({
       where: { versions: { some: { status: 'CONFIRMED' } } },
       include: {
@@ -42,8 +43,11 @@ export async function GET() {
     });
 
     return NextResponse.json({ assets });
+  } catch (error) {
+    console.error('读取资产库失败。', error);
+    return NextResponse.json({ error: '线上资产库暂时不可用，请稍后刷新。' }, { status: 503 });
   } finally {
-    await prisma.$disconnect();
+    await prisma?.$disconnect();
   }
 }
 

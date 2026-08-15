@@ -7,5 +7,5 @@ export default defineConfig([
   ...nextVitals,
   ...nextTypeScript,
   prettierConfig,
-  globalIgnores(['.next/**', 'coverage/**', 'data/**', 'node_modules/**']),
+  globalIgnores(['.next/**', '.open-next/**', 'coverage/**', 'data/**', 'node_modules/**']),
 ]);

@@ -20,6 +20,7 @@ import {
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 
+import { readJsonResponse } from '@/lib/api-response';
 import { isCloudTrialRuntime } from '@/lib/runtime-mode';
 
 type AssetRecord = {
@@ -45,7 +46,10 @@ export function AssetLibraryPage() {
   useEffect(() => {
     void fetch('/api/assets')
       .then(async (response) => {
-        const result = (await response.json()) as { assets?: AssetRecord[]; error?: string };
+        const result = await readJsonResponse<{ assets?: AssetRecord[]; error?: string }>(
+          response,
+          '线上资产库暂时不可用，请稍后刷新。',
+        );
         if (!response.ok) throw new Error(result.error ?? '无法读取资产库。');
         setAssets(result.assets ?? []);
       })

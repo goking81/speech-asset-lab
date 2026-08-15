@@ -9,12 +9,16 @@ import { createDatabaseClient } from '@/server/db/client';
 export const dynamic = 'force-dynamic';
 
 export async function GET() {
-  const prisma = createDatabaseClient();
+  let prisma: ReturnType<typeof createDatabaseClient> | undefined;
   try {
+    prisma = createDatabaseClient();
     const overview = await new SupportedQuestionService(prisma).getPracticeOverview('local-user');
     return NextResponse.json(overview);
+  } catch (error) {
+    console.error('读取问题训练数据失败。', error);
+    return NextResponse.json({ error: '问题训练数据暂时不可用，请稍后刷新。' }, { status: 503 });
   } finally {
-    await prisma.$disconnect();
+    await prisma?.$disconnect();
   }
 }
 

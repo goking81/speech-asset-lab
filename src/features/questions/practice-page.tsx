@@ -4,6 +4,8 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 
+import { readJsonResponse } from '@/lib/api-response';
+
 type CallableAsset = {
   personalAssetVersionId: string;
   triggerName: string;
@@ -41,7 +43,10 @@ export function QuestionPracticePage() {
     let isCurrent = true;
     void fetch('/api/questions')
       .then(async (response) => {
-        const result = (await response.json()) as PracticeOverview & { error?: string };
+        const result = await readJsonResponse<PracticeOverview & { error?: string }>(
+          response,
+          '问题训练数据暂时不可用，请稍后刷新。',
+        );
         if (!response.ok) throw new Error(result.error ?? '无法读取问题训练数据。');
         if (!isCurrent) return;
         setOverview(result);
@@ -77,12 +82,12 @@ export function QuestionPracticePage() {
           confirmedFactIds: factIds,
         }),
       });
-      const result = (await response.json()) as {
+      const result = await readJsonResponse<{
         questionText?: string | null;
         status?: string;
         reason?: string;
         error?: string;
-      };
+      }>(response, 'R4 草稿请求失败。');
       if (!response.ok) throw new Error(result.error ?? 'R4 草稿请求失败。');
       if (result.status === 'NOT_CONFIGURED') {
         setStatus('AI 尚未配置；没有生成随机问题，你仍可创建真实问题准备。');
@@ -126,7 +131,10 @@ export function QuestionPracticePage() {
           confirmedFactIds: factIds,
         }),
       });
-      const result = (await response.json()) as { planId?: string; error?: string };
+      const result = await readJsonResponse<{ planId?: string; error?: string }>(
+        response,
+        '无法创建问题准备。',
+      );
       if (!response.ok || !result.planId) throw new Error(result.error ?? '无法创建问题准备。');
       router.push(`/practice/new?planId=${encodeURIComponent(result.planId)}`);
     } catch (reason: unknown) {
