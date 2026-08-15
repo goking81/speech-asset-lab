@@ -11,8 +11,9 @@ const LOCAL_USER_ID = 'local-user';
 // 线上试用版沿用单用户固定 id，保证既有单用户训练服务无需改变产品规则。
 const TRIAL_USER_ID = LOCAL_USER_ID;
 const DEFAULT_LOCAL_DATABASE_URL = 'file:../data/speech-asset-lab.db';
-const SQL_CHUNK_SIZE = 60_000;
-const SQL_STATEMENT_LIMIT = 80;
+// 控制在 MCP 单次传输的安全范围内，同时用较小事务降低单批失败影响。
+const SQL_CHUNK_SIZE = 22_000;
+const SQL_STATEMENT_LIMIT = 45;
 
 function parseArguments(argumentsList) {
   let sqlOutputDirectory = null;
@@ -306,9 +307,9 @@ class SqlChunkWriter {
       const value = values[Number(valueIndex) - 1];
       return sqlLiteral(value);
     });
-    const statement = rawStatement.trimEnd().endsWith(';')
-      ? rawStatement
-      : `${rawStatement};`;
+    const statementBody = rawStatement.trimEnd().replace(/;$/, '');
+    // 支持从任意已成功批次安全续传，已存在的固定 id 数据不重复写入。
+    const statement = `${statementBody} ON CONFLICT DO NOTHING;`;
 
     if (
       this.statements.length > 0 &&
