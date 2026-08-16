@@ -11,12 +11,15 @@ export const dynamic = 'force-dynamic';
 export async function POST() {
   const prisma = createDatabaseClient();
   try {
-    await syncEnvironmentProviderConfig(prisma);
-    const config = await prisma.aiProviderConfig.findFirst({
-      where: { userId: 'local-user', isEnabled: true },
-      select: { providerKey: true, modelName: true },
-      orderBy: { createdAt: 'asc' },
-    });
+    // 环境变量是当前部署的配置事实来源，不能让历史记录抢先覆盖本次检查。
+    const environmentConfig = await syncEnvironmentProviderConfig(prisma);
+    const config =
+      environmentConfig ??
+      (await prisma.aiProviderConfig.findFirst({
+        where: { userId: 'local-user', isEnabled: true },
+        select: { providerKey: true, modelName: true },
+        orderBy: { updatedAt: 'desc' },
+      }));
     if (!config) {
       return NextResponse.json({ status: 'NOT_CONFIGURED', reason: 'AI_PROVIDER_NOT_CONFIGURED' });
     }
