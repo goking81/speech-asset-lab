@@ -1,4 +1,4 @@
-export type AiProviderErrorCode = 'UNCONFIGURED' | 'TIMEOUT' | 'FAILED';
+export type AiProviderErrorCode = 'UNCONFIGURED' | 'TIMEOUT' | 'FAILED' | `HTTP_${number}`;
 
 export class AiProviderError extends Error {
   constructor(
@@ -87,7 +87,10 @@ export class DeepSeekAiProvider implements AiProviderAdapter {
         },
       );
       if (!response.ok)
-        throw new AiProviderError('FAILED', `DeepSeek 请求失败（HTTP ${response.status}）。`);
+        throw new AiProviderError(
+          `HTTP_${response.status}`,
+          `DeepSeek 请求失败（HTTP ${response.status}）。`,
+        );
       const payload = (await response.json()) as {
         choices?: Array<{ message?: { content?: string } }>;
       };
