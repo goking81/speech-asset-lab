@@ -1,6 +1,7 @@
 {
   "$schema": "./node_modules/wrangler/config-schema.json",
   "name": "speech-asset-lab",
+  "workers_dev": true,
   "main": ".open-next/worker.js",
   "compatibility_date": "2026-08-14",
   "compatibility_flags": ["nodejs_compat"],
