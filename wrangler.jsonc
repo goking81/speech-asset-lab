@@ -15,5 +15,8 @@
   "vars": {
     "APP_VARIANT": "cloud-trial",
     "NEXT_PUBLIC_APP_VARIANT": "cloud-trial",
+    "AI_PROVIDER": "deepseek",
+    "AI_BASE_URL": "https://zenmux.ai/api/v1",
+    "AI_MODEL": "deepseek/deepseek-v4-flash",
   },
 }
