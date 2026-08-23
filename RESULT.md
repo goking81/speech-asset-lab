@@ -42,3 +42,47 @@
 ## 下一步
 
 用户可开始 RC1 本地验收。若需要验证真实 AI，请先阅读 `release/RC1_USER_ACCEPTANCE.md` 的人工 AI 发布步骤，再在设置页主动运行兼容检测和 Golden Set；不得跳过人工审核、批准或激活。
+
+---
+
+# L1｜Landing Page Demo
+
+完成日期：2026-08-23
+
+## 实现摘要
+
+- 新增独立介绍页 `/landing`，用森林学习台视觉语言解释语流资产、来源到个人资产的路径、训练顺序与 AI 的人工确认边界；
+- Landing Page 不加载工作台侧栏、运行状态条或业务数据，首屏可独立访问；CTA 分别进入 `/`（内置资产试用工作台）与 `/assets`（资产库）；
+- 页面明确说明当前线上为“内置资产试用版”，将“私有资料导入与 AI 整理”标为“规划中”，未新增上传、解析、OCR 或自动发布入口；
+- 新增浏览器断言，防止后续把导入按钮误加入 Landing Page；修复了初版 Phosphor 图标在 Server Component 中加载引起的 500。
+
+## 修改文件
+
+- `src/app/landing/page.tsx`
+- `src/features/landing/landing-page.tsx`
+- `src/components/app-shell.tsx`
+- `src/styles/globals.css`
+- `tests/e2e/landing-page.spec.ts`
+- `DESIGN.md`、`docs/design-qa.md`、`docs/04_DECISIONS.md`、`docs/09_SOURCE_MANIFEST.md`、`tasks/L1_LANDING_DEMO/TASK.md`
+
+## 数据与迁移影响
+
+- 无数据库迁移、无 Supabase 数据变更、无 AI Provider 调用；
+- 不新增线上文件上传、Storage、OCR 或用户资料处理。
+
+## 验收结果
+
+- TypeScript `tsc --noEmit`：通过；
+- Landing 相关 ESLint：通过；
+- Prettier：通过；
+- Next.js 生产构建：通过，`/landing` 为静态路由；
+- 本地 Chrome `1440 × 1000`：`/landing` 返回 200，首屏、CTA、内置资产试用版说明和“规划中”边界均确认；截图为 `test-results/landing-demo-local.png`。
+
+## 偏差与未解决问题
+
+- 无产品规则偏差；
+- “私有资料导入后由 AI 整理”未在本任务实现，需作为下一任务先确定私有 Storage、文件限制、隐私处理、OCR 策略、AI 草稿结构和人工确认流程。
+
+## 下一步建议
+
+建议创建 L2：私有资料导入与 AI 整理设计及受控实现。

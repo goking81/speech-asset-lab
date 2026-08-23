@@ -12,6 +12,11 @@ import { StatusStrip } from './status-strip';
 
 export function AppShell({ children }: PropsWithChildren) {
   const pathname = usePathname();
+
+  if (pathname === '/landing') {
+    return <>{children}</>;
+  }
+
   const isCloudTrial = isCloudTrialRuntime();
   const navigation = getPrimaryNavigation(isCloudTrial);
   const featuredNavigation = navigation.filter(

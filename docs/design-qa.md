@@ -52,3 +52,12 @@
 - 已复查 1486 × 1057 同视口下的双栏比例、顶部返回栏、候选操作行、标题英文字距和六张资产卡的主题图标。
 
 final result: passed
+
+## Landing Page Demo 验收
+
+- 验收页面：`/landing`。
+- 本地桌面视口：`1440 × 1000`；完整截图：`test-results/landing-demo-local.png`。
+- 已确认 Landing Page 不渲染应用侧栏或工作台状态条；首屏包含品牌导航、产品价值说明、森林素材与“开始体验内置资产 / 浏览资产库”双 CTA。
+- 已确认 CTA 分别指向 `/` 与 `/assets`；页面不读取资产数据，因此即使数据库暂不可用也能作为介绍页独立展示。
+- 已确认当前版本写明“内置资产试用版”，并把“私有资料导入与 AI 整理”显示为“规划中”；页面中不存在可执行的导入按钮或上传入口。
+- 已修复 Landing Page 初版中 Phosphor 图标库在 Server Component 加载导致的 500：页面组件已显式声明为 Client Component，并复测 `/landing` 返回 200。
