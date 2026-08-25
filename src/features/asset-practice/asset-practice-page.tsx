@@ -247,7 +247,7 @@ export function AssetPracticePage({ sessionId }: { sessionId: string }) {
   if (!session) {
     return (
       <main className="page page--with-back-link asset-practice">
-        <Link className="page-back-link" href="/">
+        <Link className="page-back-link" href="/lab">
           ← 返回今日训练
         </Link>
         <p className="asset-practice__status">{error || '资产训练会话不可用。'}</p>
@@ -275,7 +275,7 @@ export function AssetPracticePage({ sessionId }: { sessionId: string }) {
 
   return (
     <main className="page page--with-back-link asset-practice">
-      <Link className="page-back-link" href="/">
+      <Link className="page-back-link" href="/lab">
         ← 返回今日训练
       </Link>
       <header className="page-heading">
@@ -802,7 +802,7 @@ function CompletedPracticeSession({
 }) {
   return (
     <main className="page page--with-back-link asset-practice asset-practice--complete">
-      <Link className="page-back-link" href="/">
+      <Link className="page-back-link" href="/lab">
         ← 返回今日训练
       </Link>
       <header className="page-heading">
@@ -837,7 +837,7 @@ function CompletedPracticeSession({
 function PracticeLoadingState() {
   return (
     <main className="page page--with-back-link asset-practice">
-      <Link className="page-back-link" href="/">
+      <Link className="page-back-link" href="/lab">
         ← 返回今日训练
       </Link>
       <p className="asset-practice__status">正在恢复本地资产训练会话。</p>

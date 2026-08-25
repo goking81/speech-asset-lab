@@ -342,7 +342,7 @@ function NoCallableAssetState() {
         你已有初始学习资产，但它们目前处于熟读阶段。完成熟读、复现和单资产调用后，达到 S2
         才能用这些已掌握资产做问题训练；系统不会用未掌握资产随机出题。
       </p>
-      <Link className="question-practice__primary-action" href="/">
+      <Link className="question-practice__primary-action" href="/lab">
         开始今天训练
       </Link>
     </section>

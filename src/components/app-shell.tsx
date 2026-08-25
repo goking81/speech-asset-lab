@@ -13,7 +13,7 @@ import { StatusStrip } from './status-strip';
 export function AppShell({ children }: PropsWithChildren) {
   const pathname = usePathname();
 
-  if (pathname === '/landing') {
+  if (pathname === '/' || pathname === '/landing') {
     return <>{children}</>;
   }
 
@@ -21,7 +21,7 @@ export function AppShell({ children }: PropsWithChildren) {
   const navigation = getPrimaryNavigation(isCloudTrial);
   const featuredNavigation = navigation.filter(
     (item) =>
-      item.href === '/' ||
+      item.href === '/lab' ||
       item.href === '/assets' ||
       item.href === '/history' ||
       item.href === '/settings',
@@ -33,7 +33,7 @@ export function AppShell({ children }: PropsWithChildren) {
   return (
     <div className="app-shell">
       <aside className="app-shell__sidebar" aria-label="主导航">
-        <Link className="brand" href="/" aria-label="Speech Asset Lab 首页">
+        <Link className="brand" href="/lab" aria-label="Speech Asset Lab 工作台首页">
           <Image
             alt=""
             className="brand__mark"

@@ -22,7 +22,7 @@ export function CloudTrialUnavailablePage() {
           <Link className="asset-library__primary-action" href="/assets">
             浏览内置资产
           </Link>
-          <Link className="asset-library__secondary-action" href="/">
+          <Link className="asset-library__secondary-action" href="/lab">
             返回今日训练
           </Link>
         </div>

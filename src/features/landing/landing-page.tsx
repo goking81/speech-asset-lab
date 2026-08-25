@@ -41,11 +41,7 @@ export function LandingPage() {
   return (
     <main className="landing-demo">
       <header className="landing-demo__nav">
-        <Link
-          aria-label="Speech Asset Lab Landing Page"
-          className="landing-demo__brand"
-          href="/landing"
-        >
+        <Link aria-label="Speech Asset Lab Landing Page" className="landing-demo__brand" href="/">
           <Image alt="" height={52} src="/images/brand-evergreen-mark.png" width={52} />
           <span>
             <strong>Speech Asset Lab</strong>
@@ -57,7 +53,7 @@ export function LandingPage() {
           <a href="#method">方法</a>
           <a href="#trial">试用版</a>
         </nav>
-        <Link className="landing-demo__nav-action" href="/">
+        <Link className="landing-demo__nav-action" href="/lab">
           进入工作台
           <ArrowRight aria-hidden="true" size={17} weight="bold" />
         </Link>
@@ -77,7 +73,7 @@ export function LandingPage() {
             适合想把播客、文章里的好表达真正练会的中文英语学习者。
           </p>
           <div className="landing-demo__actions">
-            <Link className="landing-demo__primary-action" href="/">
+            <Link className="landing-demo__primary-action" href="/lab">
               用一条内置资产开始训练
               <ArrowRight aria-hidden="true" size={19} weight="bold" />
             </Link>
@@ -192,7 +188,7 @@ export function LandingPage() {
           <p>
             新资产先在单条语流里建立理解与熟悉感，再进入调用与多资产拼贴。练习记录帮助你看见自己的积累，而不是替你判断口语表现。
           </p>
-          <Link href="/" className="landing-demo__text-action">
+          <Link href="/lab" className="landing-demo__text-action">
             查看今日训练 <ArrowRight aria-hidden="true" size={17} weight="bold" />
           </Link>
         </div>
@@ -244,7 +240,7 @@ export function LandingPage() {
           <Leaf aria-hidden="true" size={17} weight="fill" /> Speech Asset Lab
         </span>
         <p>为长期学习而设计的英语语流资产工作台。</p>
-        <Link href="/">
+        <Link href="/lab">
           进入试用工作台 <ArrowRight aria-hidden="true" size={15} weight="bold" />
         </Link>
       </footer>

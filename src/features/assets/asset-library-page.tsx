@@ -204,7 +204,7 @@ function EmptyState({ isCloudTrial }: { isCloudTrial: boolean }) {
       </p>
       <div className="asset-library__actions">
         {isCloudTrial ? (
-          <Link className="asset-library__primary-action" href="/">
+          <Link className="asset-library__primary-action" href="/lab">
             返回今日训练
           </Link>
         ) : (
