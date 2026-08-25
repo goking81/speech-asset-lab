@@ -1,8 +1,9 @@
 import { NextResponse } from 'next/server';
 
-import { isCloudTrialRuntime } from '@/lib/runtime-mode';
+import { isCloudImportRuntime, isLocalOnlyFeatureBlocked } from '@/lib/runtime-mode';
 import { cloudTrialUnavailableResponse } from '@/server/cloud-trial-response';
 import { createDatabaseClient } from '@/server/db/client';
+import { CloudSourceOriginalStoreError } from '@/server/storage/cloud-source-original-store';
 
 type IntakeRequest = {
   collectionTitle?: string;
@@ -16,9 +17,12 @@ type IntakeRequest = {
 };
 
 export async function POST(request: Request) {
-  if (isCloudTrialRuntime()) return cloudTrialUnavailableResponse();
+  if (isLocalOnlyFeatureBlocked()) return cloudTrialUnavailableResponse();
 
-  const body = (await request.json()) as IntakeRequest;
+  const body = (await request.json().catch(() => null)) as IntakeRequest | null;
+  if (!body) {
+    return NextResponse.json({ error: '导入请求格式无效。' }, { status: 400 });
+  }
   const text = body.text?.trim();
   const uploadedFiles = body.files ?? [];
 
@@ -29,12 +33,21 @@ export async function POST(request: Request) {
   const prisma = createDatabaseClient();
 
   try {
-    const { ImportIntakeService } = await import('@/server/imports/import-intake-service');
-    const service = new ImportIntakeService(prisma);
+    const service = isCloudImportRuntime()
+      ? new (await import('@/server/imports/cloud-import-intake-service')).CloudImportIntakeService(
+          prisma,
+        )
+      : new (await import('@/server/imports/import-intake-service')).ImportIntakeService(prisma);
     const result = await service.createBatch({
       userId: 'local-user',
       collectionTitle: body.collectionTitle,
-      sourceType: text ? 'PASTED_TEXT' : 'LOCAL_FILES',
+      sourceType: isCloudImportRuntime()
+        ? text
+          ? 'CLOUD_PASTED_TEXT'
+          : 'CLOUD_DOCUMENT_FILES'
+        : text
+          ? 'PASTED_TEXT'
+          : 'LOCAL_FILES',
       originalName: text ? 'pasted-text.txt' : 'local-files',
       files: [
         ...(text
@@ -65,6 +78,12 @@ export async function POST(request: Request) {
         skipReason: file.skipReason,
       })),
     });
+  } catch (error) {
+    const status = error instanceof CloudSourceOriginalStoreError ? 503 : 400;
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : '导入批次创建失败。' },
+      { status },
+    );
   } finally {
     await prisma.$disconnect();
   }

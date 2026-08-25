@@ -21,7 +21,7 @@ import Link from 'next/link';
 import { useEffect, useState } from 'react';
 
 import { readJsonResponse } from '@/lib/api-response';
-import { isCloudTrialRuntime } from '@/lib/runtime-mode';
+import { isCloudImportRuntime, isCloudTrialRuntime } from '@/lib/runtime-mode';
 
 type AssetRecord = {
   id: string;
@@ -42,6 +42,7 @@ export function AssetLibraryPage() {
   const [assets, setAssets] = useState<AssetRecord[] | null>(null);
   const [error, setError] = useState('');
   const isCloudTrial = isCloudTrialRuntime();
+  const isCloudImportEnabled = isCloudImportRuntime();
 
   useEffect(() => {
     void fetch('/api/assets')
@@ -68,7 +69,7 @@ export function AssetLibraryPage() {
           </h1>
           <p>浏览、管理你的英语表达语流，选择合适的语流用于训练。</p>
         </div>
-        {isCloudTrial ? (
+        {isCloudTrial && !isCloudImportEnabled ? (
           <span className="asset-library__import-action asset-library__import-action--static">
             内置资产试用版
           </span>

@@ -3,6 +3,8 @@
 import Link from 'next/link';
 import { useState } from 'react';
 
+import { isCloudImportRuntime } from '@/lib/runtime-mode';
+
 type ImportState =
   | { kind: 'IDLE' }
   | { kind: 'SAVING' }
@@ -19,6 +21,7 @@ export function ImportIntakePage() {
   const [text, setText] = useState('');
   const [files, setFiles] = useState<File[]>([]);
   const [state, setState] = useState<ImportState>({ kind: 'IDLE' });
+  const isCloudImport = isCloudImportRuntime();
 
   async function submit() {
     setState({ kind: 'SAVING' });
@@ -40,12 +43,12 @@ export function ImportIntakePage() {
           ),
         }),
       });
-      const payload = (await response.json()) as {
+      const payload = await readJsonResponse<{
         batchId?: string;
         status?: string;
         files?: Array<{ relativePath: string; status: string; skipReason?: string | null }>;
         error?: string;
-      };
+      }>(response);
 
       if (!response.ok || !payload.batchId || !payload.status) {
         throw new Error(payload.error ?? '导入批次创建失败。');
@@ -76,9 +79,15 @@ export function ImportIntakePage() {
         ← 返回内容工作台
       </Link>
       <header className="page-heading">
-        <p className="page-heading__eyebrow">F1-01 / LOCAL INTAKE</p>
+        <p className="page-heading__eyebrow">
+          {isCloudImport ? 'PRIVATE CLOUD INTAKE' : 'F1-01 / LOCAL INTAKE'}
+        </p>
         <h1>导入内容</h1>
-        <p>本轮仅接收和本地保存来源文件；不会解析内容、生成资产或调用 AI。</p>
+        <p>
+          {isCloudImport
+            ? '来源原件会私有保存；支持粘贴文本、TXT、PDF 与 Word（.docx）。解析完成后，AI 只生成候选草稿，是否入库由你确认。'
+            : '本轮仅接收和本地保存来源文件；不会解析内容、生成资产或调用 AI。'}
+        </p>
       </header>
       <section className="gate-demo__card" aria-labelledby="import-heading">
         <h2 id="import-heading">粘贴文本</h2>
@@ -99,23 +108,43 @@ export function ImportIntakePage() {
           />
         </label>
         <label>
-          本地文件
+          {isCloudImport ? '来源文件（可选）' : '本地文件'}
           <input
             aria-label="本地文件"
+            accept={
+              isCloudImport
+                ? '.txt,text/plain,.pdf,application/pdf,.docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+                : undefined
+            }
             multiple
             onChange={(event) => setFiles(Array.from(event.target.files ?? []))}
             type="file"
           />
         </label>
         <p className="gate-demo__status">
-          {files.length > 0 ? `已选择 ${files.length} 个文件。` : '可选择一个或多个本地文件。'}
+          {files.length > 0
+            ? `已选择 ${files.length} 个文件。`
+            : isCloudImport
+              ? '云端支持 TXT、PDF、Word（.docx）。带文字层 PDF/Word 由 Cloudflare 解析；扫描 PDF 会在文字层缺失时进入 OCR。'
+              : '可选择一个或多个本地文件。'}
         </p>
+        {isCloudImport && (
+          <p className="gate-demo__status">
+            扫描 PDF 的 OCR 使用受限的云端 OCR 通道：免费额度单文件最多 1 MiB、最多 3 页；只有需要
+            OCR 的扫描件会发送到该服务。
+          </p>
+        )}
         <button disabled={!canSubmit} onClick={submit} type="button">
-          {state.kind === 'SAVING' ? '正在接收…' : '创建本地导入批次'}
+          {state.kind === 'SAVING'
+            ? '正在接收…'
+            : isCloudImport
+              ? '创建云端导入批次'
+              : '创建本地导入批次'}
         </button>
         <p aria-live="polite" className="gate-demo__status">
           {state.kind === 'IDLE' && '填写名称和文本后可接收。'}
-          {state.kind === 'SAVING' && '正在保存到本地目录。'}
+          {state.kind === 'SAVING' &&
+            (isCloudImport ? '正在保存到私有云端存储。' : '正在保存到本地目录。')}
           {state.kind === 'SUCCESS' && `批次 ${state.batchId} 已创建：${state.status}。`}
           {state.kind === 'ERROR' && state.message}
         </p>
@@ -150,4 +179,17 @@ function readFileAsBase64(file: File) {
 
 function getRelativePath(file: File & { webkitRelativePath?: string }) {
   return file.webkitRelativePath || file.name;
+}
+
+async function readJsonResponse<T extends object>(response: Response) {
+  const body = await response.text();
+  if (!body) {
+    return { error: '服务暂时没有返回可读取的响应，请稍后重试。' } as T;
+  }
+
+  try {
+    return JSON.parse(body) as T;
+  } catch {
+    return { error: '服务返回了无法识别的响应，请稍后重试。' } as T;
+  }
 }

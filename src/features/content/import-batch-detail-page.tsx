@@ -3,6 +3,8 @@
 import Link from 'next/link';
 import { useCallback, useEffect, useState } from 'react';
 
+import { isCloudImportRuntime } from '@/lib/runtime-mode';
+
 type BatchDetail = {
   id: string;
   status: string;
@@ -17,6 +19,7 @@ type BatchDetail = {
     parseProgressCurrent?: number | null;
     parseProgressTotal?: number | null;
     aiSourceDocumentId?: string | null;
+    aiSourceDocumentTitle?: string | null;
   }>;
 };
 
@@ -31,6 +34,18 @@ function parseFailureLabel(reason: string) {
     OCR_PROCESS_FAILED: '本机 OCR 处理 PDF 失败。',
     OCR_TEXT_NOT_FOUND: 'OCR 未从 PDF 页面识别出文字。',
     LOCAL_FILE_READ_FAILED: '本机原文件无法读取。',
+    CLOUD_DOCUMENT_UNSUPPORTED: '云端仅支持 TXT、PDF 与 Word（.docx）文件。',
+    CLOUD_TEXT_INVALID_UTF8: '文本文件不是有效的 UTF-8 编码。请转存为 UTF-8 后重试。',
+    CLOUD_TEXT_EMPTY: '来源文本为空，无法建立来源段落。',
+    CLOUD_STORAGE_READ_FAILED: '私有来源存储暂时无法读取该文件，请稍后重试。',
+    CLOUD_AI_BINDING_UNAVAILABLE: 'Cloudflare 文档解析服务尚未绑定。',
+    CLOUD_DOCUMENT_CONVERSION_FAILED: 'Cloudflare 未能从此文档提取可靠文字。',
+    CLOUD_DOCUMENT_PARSE_FAILED: '云端文档解析失败。',
+    CLOUD_OCR_NOT_CONFIGURED: '扫描 PDF 需要 OCR 密钥。配置完成后点击“解析已接收文件”重试。',
+    CLOUD_OCR_FREE_LIMIT_EXCEEDED:
+      '扫描 PDF 超出当前免费 OCR 限制（1 MiB、最多 3 页）。请拆分后重试。',
+    CLOUD_OCR_FAILED: '云端 OCR 未完成，请稍后重试。',
+    CLOUD_OCR_TEXT_NOT_FOUND: 'OCR 未从扫描 PDF 中识别出可用文字。',
   };
 
   return labels[reason] ?? reason;
@@ -44,10 +59,11 @@ export function ImportBatchDetailPage({ batchId }: { batchId: string }) {
   const [now, setNow] = useState(0);
   const [isDrafting, setIsDrafting] = useState(false);
   const [draftStatus, setDraftStatus] = useState<string | null>(null);
+  const isCloudImport = isCloudImportRuntime();
 
   const refresh = useCallback(async () => {
     const response = await fetch(`/api/imports/${batchId}`);
-    const payload = (await response.json()) as BatchDetail & { error?: string };
+    const payload = await readJsonResponse<BatchDetail & { error?: string }>(response);
 
     if (!response.ok) {
       throw new Error(payload.error ?? '无法读取导入批次。');
@@ -59,7 +75,7 @@ export function ImportBatchDetailPage({ batchId }: { batchId: string }) {
   useEffect(() => {
     void fetch(`/api/imports/${batchId}`)
       .then(async (response) => {
-        const payload = (await response.json()) as BatchDetail & { error?: string };
+        const payload = await readJsonResponse<BatchDetail & { error?: string }>(response);
 
         if (!response.ok) {
           throw new Error(payload.error ?? '无法读取导入批次。');
@@ -91,9 +107,9 @@ export function ImportBatchDetailPage({ batchId }: { batchId: string }) {
 
     try {
       const response = await fetch(`/api/imports/${batchId}`, { method: 'POST' });
+      const payload = await readJsonResponse<{ error?: string }>(response);
 
       if (!response.ok) {
-        const payload = (await response.json()) as { error?: string };
         throw new Error(payload.error ?? '解析失败。');
       }
 
@@ -118,13 +134,19 @@ export function ImportBatchDetailPage({ batchId }: { batchId: string }) {
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ forceOcrFileId: fileId }),
       });
+      const payload = await readJsonResponse<{ error?: string }>(response);
       if (!response.ok) {
-        const payload = (await response.json()) as { error?: string };
         throw new Error(payload.error ?? '高精度 OCR 重新解析失败。');
       }
       await refresh();
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : '高精度 OCR 重新解析失败。');
+      setError(
+        reason instanceof Error
+          ? reason.message
+          : isCloudImport
+            ? '云端 OCR 重新解析失败。'
+            : '高精度 OCR 重新解析失败。',
+      );
     } finally {
       setIsParsing(false);
       setParseStartedAt(null);
@@ -142,7 +164,7 @@ export function ImportBatchDetailPage({ batchId }: { batchId: string }) {
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ sourceDocumentId }),
       });
-      const payload = (await response.json()) as { status?: string; error?: string };
+      const payload = await readJsonResponse<{ status?: string; error?: string }>(response);
       if (!response.ok) throw new Error(payload.error ?? 'AI 候选草稿生成失败。');
       if (payload.status === 'NOT_CONFIGURED') {
         setDraftStatus('AI 服务尚未配置，未生成草稿。');
@@ -183,13 +205,21 @@ export function ImportBatchDetailPage({ batchId }: { batchId: string }) {
     pageCurrent > 0 && pageTotal > pageCurrent
       ? Math.ceil((elapsedSeconds / pageCurrent) * (pageTotal - pageCurrent))
       : null;
-  const aiSourceDocumentIds = [
-    ...new Set(
+  const aiSourceDocuments = Array.from(
+    new Map(
       (detail?.files ?? [])
-        .map((file) => file.aiSourceDocumentId)
-        .filter((id): id is string => Boolean(id)),
-    ),
-  ];
+        .filter((file): file is typeof file & { aiSourceDocumentId: string } =>
+          Boolean(file.aiSourceDocumentId),
+        )
+        .map((file) => [
+          file.aiSourceDocumentId,
+          {
+            id: file.aiSourceDocumentId,
+            title: file.aiSourceDocumentTitle ?? file.relativePath,
+          },
+        ]),
+    ).values(),
+  );
 
   return (
     <main className="page page--with-back-link import-intake">
@@ -222,23 +252,29 @@ export function ImportBatchDetailPage({ batchId }: { batchId: string }) {
                     ? `扫描 PDF 第 ${pageCurrent}/${pageTotal} 页；已用时 ${elapsedSeconds} 秒${
                         estimatedSeconds === null ? '' : `，预计还需约 ${estimatedSeconds} 秒`
                       }。`
-                    : `正在准备或提取文本；扫描 PDF 通常每页需要约 1-3 秒。已用时 ${elapsedSeconds} 秒。`}
+                    : `正在准备、转换或 OCR 识别文本；已用时 ${elapsedSeconds} 秒。`}
                 </p>
               </section>
             )}
             <button disabled={isParsing} onClick={parse} type="button">
               {isParsing ? '正在解析…' : '解析已接收文件'}
             </button>
-            {aiSourceDocumentIds.length > 0 && (
+            {aiSourceDocuments.length > 0 && (
               <div className="import-intake__draft-actions">
-                <p>解析文本可由 AI 生成候选资产草稿；草稿不会自动发布，须在内容工作台审核。</p>
-                <button
-                  disabled={isDrafting}
-                  onClick={() => void generateDraft(aiSourceDocumentIds[0])}
-                  type="button"
-                >
-                  {isDrafting ? '正在生成 AI 草稿…' : '生成 AI 建议资产（草稿）'}
-                </button>
+                <p>
+                  为每份已解析文档单独生成候选草稿；AI
+                  只会从该文档的来源段落中筛选，不会自动发布资产。
+                </p>
+                {aiSourceDocuments.map((document) => (
+                  <button
+                    disabled={isDrafting}
+                    key={document.id}
+                    onClick={() => void generateDraft(document.id)}
+                    type="button"
+                  >
+                    {isDrafting ? '正在生成 AI 草稿…' : `AI 筛选候选：${document.title}`}
+                  </button>
+                ))}
                 <Link href="/content">前往内容工作台审核</Link>
                 {draftStatus && <p className="gate-demo__status">{draftStatus}</p>}
               </div>
@@ -254,7 +290,7 @@ export function ImportBatchDetailPage({ batchId }: { batchId: string }) {
                       onClick={() => void handleReparseWithOcr(file.id)}
                       type="button"
                     >
-                      使用高精度 OCR 重新解析
+                      {isCloudImport ? '使用云端 OCR 重新解析' : '使用高精度 OCR 重新解析'}
                     </button>
                   )}
                 </li>
@@ -265,4 +301,17 @@ export function ImportBatchDetailPage({ batchId }: { batchId: string }) {
       </section>
     </main>
   );
+}
+
+async function readJsonResponse<T extends object>(response: Response) {
+  const body = await response.text();
+  if (!body) {
+    return { error: '服务暂时没有返回可读取的响应，请稍后重试。' } as T;
+  }
+
+  try {
+    return JSON.parse(body) as T;
+  } catch {
+    return { error: '服务返回了无法识别的响应，请稍后重试。' } as T;
+  }
 }

@@ -5,7 +5,7 @@ import {
   CandidateReviewValidationError,
 } from '@/server/content/candidate-review-service';
 import { createDatabaseClient } from '@/server/db/client';
-import { isCloudTrialRuntime } from '@/lib/runtime-mode';
+import { isLocalOnlyFeatureBlocked } from '@/lib/runtime-mode';
 import { cloudTrialUnavailableResponse } from '@/server/cloud-trial-response';
 
 const nodeTypes = [
@@ -26,7 +26,7 @@ const expressionUnitTypes = [
 const candidateStatuses = ['EDITING', 'IGNORED'] as const;
 
 export async function GET() {
-  if (isCloudTrialRuntime()) return cloudTrialUnavailableResponse();
+  if (isLocalOnlyFeatureBlocked()) return cloudTrialUnavailableResponse();
 
   const prisma = createDatabaseClient();
 
@@ -68,13 +68,18 @@ export async function GET() {
     ]);
 
     return NextResponse.json({ documents, candidates });
+  } catch (error) {
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : '无法读取候选审核数据。' },
+      { status: 500 },
+    );
   } finally {
     await prisma.$disconnect();
   }
 }
 
 export async function POST(request: Request) {
-  if (isCloudTrialRuntime()) return cloudTrialUnavailableResponse();
+  if (isLocalOnlyFeatureBlocked()) return cloudTrialUnavailableResponse();
 
   const prisma = createDatabaseClient();
 

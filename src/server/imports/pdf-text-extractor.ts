@@ -5,6 +5,9 @@ import path from 'node:path';
 import { promisify } from 'node:util';
 
 import { extractPdfTextWithLocalOcr, LocalOcrError } from './local-ocr-service';
+import { needsOcrFallback } from './document-text-quality';
+
+export { needsOcrFallback } from './document-text-quality';
 
 const execFileAsync = promisify(execFile);
 
@@ -36,35 +39,6 @@ const extractScript = [
   '    pages.append(page.extract_text() or "")',
   'sys.stdout.write("\\n\\n".join(pages))',
 ].join('\n');
-
-/**
- * 判断 PDF 内嵌文字层是否可信。
- *
- * 有些课件 PDF 看起来带有文字层，但字体编码会把字母读成 0/O，或在中文之间
- * 插入空格。这种内容不会出现替换字符，却同样不适合直接进入资产筛选，因此改走
- * 本地 OCR 取得按页面渲染后的真实文字。
- */
-export function needsOcrFallback(text: string) {
-  const replacementCharacters = (text.match(/�/g) ?? []).length;
-  const nonWhitespaceLength = text.replace(/\s/g, '').length;
-  const isolatedZeroes = (text.match(/(?<!\d)0(?!\d)/g) ?? []).length;
-  const zeroInsideWords = (text.match(/(?:[A-Za-z]0|0[A-Za-z])/g) ?? []).length;
-  const cjkCharacters = (text.match(/[\u3400-\u9fff]/gu) ?? []).length;
-  const spacedCjkPairs = (text.match(/[\u3400-\u9fff]\s+[\u3400-\u9fff]/gu) ?? []).length;
-  const controlCharacters = (text.match(/[\u0000-\u0008\u000b\u000c\u000e-\u001f]/gu) ?? []).length;
-
-  const hasReplacementNoise =
-    replacementCharacters >= Math.max(8, Math.ceil(Math.max(text.length, 1) * 0.02));
-  const hasZeroNoise =
-    isolatedZeroes + zeroInsideWords * 2 >=
-    Math.max(8, Math.ceil(Math.max(nonWhitespaceLength, 1) * 0.008));
-  const hasSpacedCjkNoise =
-    cjkCharacters >= 20 && spacedCjkPairs >= Math.max(12, Math.ceil(cjkCharacters * 0.3));
-
-  return (
-    !text || hasReplacementNoise || hasZeroNoise || hasSpacedCjkNoise || controlCharacters >= 4
-  );
-}
 
 async function exists(filePath: string) {
   try {
