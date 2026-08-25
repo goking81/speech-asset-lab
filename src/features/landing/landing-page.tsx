@@ -53,8 +53,8 @@ export function LandingPage() {
           </span>
         </Link>
         <nav aria-label="Landing Page 导航" className="landing-demo__nav-links">
+          <a href="#example">示例</a>
           <a href="#method">方法</a>
-          <a href="#principles">原则</a>
           <a href="#trial">试用版</a>
         </nav>
         <Link className="landing-demo__nav-action" href="/">
@@ -67,25 +67,28 @@ export function LandingPage() {
         <div className="landing-demo__hero-copy">
           <p className="landing-demo__eyebrow">SPEECH ASSET LAB / LEARN WITH EVIDENCE</p>
           <h1 id="landing-title">
-            让英语表达，
+            <span>让英语表达，</span>
             <em>成为可以积累的资产。</em>
           </h1>
           <p className="landing-demo__lead">
-            把值得学习的英语语流保留下来，形成可追溯、可训练、可调用的个人表达资产。
+            把播客和文档里值得学习的英语表达，整理成可追溯、能反复训练、在真实场景中说出来的个人表达库。
+          </p>
+          <p className="landing-demo__audience">
+            适合想把播客、文章里的好表达真正练会的中文英语学习者。
           </p>
           <div className="landing-demo__actions">
             <Link className="landing-demo__primary-action" href="/">
-              开始体验内置资产
+              用一条内置资产开始训练
               <ArrowRight aria-hidden="true" size={19} weight="bold" />
             </Link>
             <Link className="landing-demo__secondary-action" href="/assets">
-              浏览资产库
+              先看看资产库
             </Link>
           </div>
           <ul aria-label="产品特性" className="landing-demo__chips">
-            <li>桌面优先</li>
-            <li>单用户工作台</li>
-            <li>AI 草稿需人工确认</li>
+            <li>保留原始来源</li>
+            <li>按阶段反复训练</li>
+            <li>AI 草稿由你确认</li>
           </ul>
         </div>
         <div className="landing-demo__hero-visual" aria-hidden="true">
@@ -114,25 +117,56 @@ export function LandingPage() {
         </div>
       </section>
 
-      <section className="landing-demo__asset-intro" aria-labelledby="asset-intro-title">
-        <div>
-          <p className="landing-demo__eyebrow">NOT A SENTENCE COLLECTION</p>
-          <h2 id="asset-intro-title">
-            不是背一条句子，
-            <br />
-            而是建立一条能被你调用的语流。
-          </h2>
+      <section className="landing-demo__example" id="example" aria-labelledby="asset-example-title">
+        <div className="landing-demo__example-heading">
+          <div>
+            <p className="landing-demo__eyebrow">ONE ASSET, FROM EVIDENCE TO USE</p>
+            <h2 id="asset-example-title">一条表达，怎样成为你的资产。</h2>
+          </div>
+          <p>
+            以现有内置资产「多喝水」为例：来源版本保持只读，个人版本独立保存，再按阶段进入训练。
+          </p>
         </div>
-        <p>
-          一条资产包含来源、核心表达、个人版本与训练记录。你可以知道它来自哪里、为什么值得学，以及怎样在自己的表达中使用它。
-        </p>
+
+        <div className="landing-demo__example-flow">
+          <article>
+            <span className="landing-demo__example-icon">
+              <FileText aria-hidden="true" size={24} weight="regular" />
+            </span>
+            <small>01 · 来源证据</small>
+            <h3>保留原始出处</h3>
+            <p>来源主题：喝水、健康与身体表现。来源版本只读，方便随时回看原始语境。</p>
+          </article>
+          <article className="landing-demo__example-personal">
+            <span className="landing-demo__example-icon">
+              <Sparkle aria-hidden="true" size={24} weight="regular" />
+            </span>
+            <small>02 · 个人版本</small>
+            <h3>改成与你有关的表达</h3>
+            <blockquote>
+              Forming a habit of drinking enough water is crucial. Drinking enough water allows your
+              body to perform at its best.
+            </blockquote>
+          </article>
+          <article>
+            <span className="landing-demo__example-icon">
+              <Compass aria-hidden="true" size={24} weight="regular" />
+            </span>
+            <small>03 · 进入训练</small>
+            <h3>从理解走向调用</h3>
+            <p>先熟读、再复现，完成单资产调用后，才逐步进入多资产拼贴。</p>
+            <Link href="/assets" className="landing-demo__example-link">
+              浏览真实资产 <ArrowRight aria-hidden="true" size={16} weight="bold" />
+            </Link>
+          </article>
+        </div>
       </section>
 
       <section className="landing-demo__method" id="method" aria-labelledby="method-title">
         <div className="landing-demo__section-heading">
           <p className="landing-demo__eyebrow">A CALM, REPEATABLE PATH</p>
           <h2 id="method-title">把理解，慢慢变成表达。</h2>
-          <p>不靠随机题库，也不跳过练习门槛。每一步都建立在你已经拥有的资产上。</p>
+          <p>不靠随机题库，也不跳过练习门槛。每一步都建立在你已经拥有或确认的资产上。</p>
         </div>
         <ol className="landing-demo__path">
           {pathSteps.map(({ title, description, icon: Icon }, index) => (
@@ -196,6 +230,9 @@ export function LandingPage() {
           <BookOpen aria-hidden="true" size={26} weight="regular" />
           <div>
             <strong>下一步：私有资料导入与 AI 整理</strong>
+            <p className="landing-demo__trial-flow">
+              导入播客 / PDF → AI 筛选候选 → 你确认后进入资产库
+            </p>
             <p>将在完成私有存储、资料保护与人工确认流程后开放。</p>
           </div>
           <span>规划中</span>
