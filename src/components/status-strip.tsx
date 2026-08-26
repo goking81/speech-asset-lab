@@ -5,10 +5,12 @@ import { useEffect, useState } from 'react';
 import { isCloudTrialRuntime } from '@/lib/runtime-mode';
 
 export function StatusStrip() {
-  const [aiConfigured, setAiConfigured] = useState<boolean | null>(null);
   const isCloudTrial = isCloudTrialRuntime();
+  const [aiConfigured, setAiConfigured] = useState<boolean | null>(isCloudTrial ? false : null);
 
   useEffect(() => {
+    if (isCloudTrial) return;
+
     void fetch('/api/ai/config')
       .then(async (response) => {
         const body = await response.text();
@@ -20,16 +22,22 @@ export function StatusStrip() {
         );
       })
       .catch(() => setAiConfigured(false));
-  }, []);
+  }, [isCloudTrial]);
 
   return (
     <header className="status-strip" aria-label="应用状态">
-      <p>{isCloudTrial ? '内置资产试用版 · 私有访问' : '桌面优先 · 本地运行'}</p>
+      <p>{isCloudTrial ? '内置资产试用版 · 公开访问' : '桌面优先 · 本地运行'}</p>
       <dl>
         <div>
-          <dt>AI 服务</dt>
+          <dt>AI 辅助</dt>
           <dd className={aiConfigured ? 'status-strip__saved' : 'status-strip__pending'}>
-            {aiConfigured === null ? '检查中' : aiConfigured ? '已配置' : '未配置'}
+            {aiConfigured === null
+              ? '检查中'
+              : aiConfigured
+                ? '已配置'
+                : isCloudTrial
+                  ? '试用版未开放'
+                  : '未配置'}
           </dd>
         </div>
         <div>

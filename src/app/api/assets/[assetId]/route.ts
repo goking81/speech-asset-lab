@@ -1,14 +1,16 @@
 import { NextResponse } from 'next/server';
 
+import { CLOUD_TRIAL_USER_ID, isCloudTrialRuntime } from '@/lib/runtime-mode';
 import { createDatabaseClient } from '@/server/db/client';
 
 export async function GET(_request: Request, context: { params: Promise<{ assetId: string }> }) {
   const { assetId } = await context.params;
   const prisma = createDatabaseClient();
+  const cloudTrial = isCloudTrialRuntime();
 
   try {
     const asset = await prisma.sourceAsset.findUnique({
-      where: { id: assetId },
+      where: { id: assetId, ...(cloudTrial ? { userId: CLOUD_TRIAL_USER_ID } : {}) },
       include: {
         versions: {
           where: { status: 'CONFIRMED' },
@@ -17,7 +19,7 @@ export async function GET(_request: Request, context: { params: Promise<{ assetI
           select: { id: true, title: true, coreIdea: true, coreFlow: true, version: true },
         },
         personalAssets: {
-          where: { userId: 'local-user' },
+          where: { userId: cloudTrial ? CLOUD_TRIAL_USER_ID : 'local-user' },
           include: {
             versions: {
               where: { status: 'CONFIRMED' },

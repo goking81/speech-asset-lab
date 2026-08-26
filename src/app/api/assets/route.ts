@@ -4,15 +4,21 @@ import {
   PersonalAssetService,
   PersonalAssetValidationError,
 } from '@/server/assets/personal-asset-service';
+import { cloudTrialUnavailableResponse } from '@/server/cloud-trial-response';
 import { createDatabaseClient } from '@/server/db/client';
+import { CLOUD_TRIAL_USER_ID, isCloudTrialRuntime } from '@/lib/runtime-mode';
 
 export async function GET() {
   let prisma: ReturnType<typeof createDatabaseClient> | undefined;
 
   try {
     prisma = createDatabaseClient();
+    const cloudTrial = isCloudTrialRuntime();
     const assets = await prisma.sourceAsset.findMany({
-      where: { versions: { some: { status: 'CONFIRMED' } } },
+      where: {
+        ...(cloudTrial ? { userId: CLOUD_TRIAL_USER_ID } : {}),
+        versions: { some: { status: 'CONFIRMED' } },
+      },
       include: {
         versions: {
           where: { status: 'CONFIRMED' },
@@ -28,7 +34,7 @@ export async function GET() {
           },
         },
         personalAssets: {
-          where: { userId: 'local-user' },
+          where: { userId: cloudTrial ? CLOUD_TRIAL_USER_ID : 'local-user' },
           include: {
             versions: {
               where: { status: 'CONFIRMED' },
@@ -52,6 +58,8 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
+  if (isCloudTrialRuntime()) return cloudTrialUnavailableResponse();
+
   const prisma = createDatabaseClient();
 
   try {

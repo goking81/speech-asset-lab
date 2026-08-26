@@ -4,11 +4,15 @@ import {
   AssetPracticeService,
   AssetPracticeValidationError,
 } from '@/server/practice/asset-practice-service';
+import { isCloudTrialRuntime } from '@/lib/runtime-mode';
+import { cloudTrialUnavailableResponse } from '@/server/cloud-trial-response';
 import { createDatabaseClient } from '@/server/db/client';
 
 export const dynamic = 'force-dynamic';
 
 export async function POST(request: Request) {
+  if (isCloudTrialRuntime()) return cloudTrialUnavailableResponse();
+
   const prisma = createDatabaseClient();
   try {
     const body = (await request.json()) as {

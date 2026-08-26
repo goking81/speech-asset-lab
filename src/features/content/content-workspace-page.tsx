@@ -6,22 +6,40 @@ const parsingStates = [
   ['发现重复', '精确重复与近重复只提示，不会自动合并、替换或删除。'],
 ] as const;
 
-export function ContentWorkspacePage() {
+export function ContentWorkspacePage({
+  importPath = '/content/import',
+  reviewPath = '/content/jobs/manual-review',
+  cloudAdmin = false,
+}: {
+  importPath?: string;
+  reviewPath?: string;
+  cloudAdmin?: boolean;
+}) {
   return (
     <main className="page content-workspace">
       <header className="page-heading">
-        <p className="page-heading__eyebrow">CONTENT / LOCAL SOURCES</p>
+        <p className="page-heading__eyebrow">
+          {cloudAdmin ? 'CONTENT / PRIVATE CLOUD SOURCES' : 'CONTENT / LOCAL SOURCES'}
+        </p>
         <h1>内容工作台</h1>
-        <p>从本地来源开始整理。这里保存的是可追溯的原始内容，不会直接变成训练资产。</p>
+        <p>
+          {cloudAdmin
+            ? '这里保存的是仅管理员可访问的可追溯来源内容，不会直接变成公开训练资产。'
+            : '从本地来源开始整理。这里保存的是可追溯的原始内容，不会直接变成训练资产。'}
+        </p>
       </header>
 
       <section className="content-workspace__hero" aria-labelledby="content-intake-heading">
         <div>
           <p className="content-workspace__serial">STEP 01 · SOURCE INTAKE</p>
           <h2 id="content-intake-heading">导入一份来源内容</h2>
-          <p>支持粘贴文本或选择本地文件。接收、解析和重复提示均在本地完成；AI 不会参与此步骤。</p>
+          <p>
+            {cloudAdmin
+              ? '支持粘贴文本、TXT、PDF 与 Word。原件私有保存；解析、OCR 与 AI 草稿都不会自动发布资产。'
+              : '支持粘贴文本或选择本地文件。接收、解析和重复提示均在本地完成；AI 不会参与此步骤。'}
+          </p>
         </div>
-        <Link className="content-workspace__action" href="/content/import">
+        <Link className="content-workspace__action" href={importPath}>
           导入内容
         </Link>
       </section>
@@ -50,7 +68,7 @@ export function ContentWorkspacePage() {
         <p>
           候选审核和来源资产确认将在下一阶段开放。在确认前，来源文档、段落和原文件均不会被当作个人训练资产。
         </p>
-        <Link className="content-workspace__review-link" href="/content/jobs/manual-review">
+        <Link className="content-workspace__review-link" href={reviewPath}>
           查看候选审核
         </Link>
       </section>

@@ -5,7 +5,7 @@ import {
   CandidateReviewValidationError,
 } from '@/server/content/candidate-review-service';
 import { createDatabaseClient } from '@/server/db/client';
-import { isLocalOnlyFeatureBlocked } from '@/lib/runtime-mode';
+import { isCloudTrialRuntime } from '@/lib/runtime-mode';
 import { cloudTrialUnavailableResponse } from '@/server/cloud-trial-response';
 
 const nodeTypes = [
@@ -26,7 +26,7 @@ const expressionUnitTypes = [
 const candidateStatuses = ['EDITING', 'IGNORED'] as const;
 
 export async function GET() {
-  if (isLocalOnlyFeatureBlocked()) return cloudTrialUnavailableResponse();
+  if (isCloudTrialRuntime()) return cloudTrialUnavailableResponse();
 
   const prisma = createDatabaseClient();
 
@@ -79,7 +79,7 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
-  if (isLocalOnlyFeatureBlocked()) return cloudTrialUnavailableResponse();
+  if (isCloudTrialRuntime()) return cloudTrialUnavailableResponse();
 
   const prisma = createDatabaseClient();
 

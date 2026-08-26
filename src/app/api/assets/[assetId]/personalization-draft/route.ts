@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 
 import { DeepSeekAiProvider } from '@/ai/provider';
+import { isCloudTrialRuntime } from '@/lib/runtime-mode';
+import { cloudTrialUnavailableResponse } from '@/server/cloud-trial-response';
 import { syncEnvironmentProviderConfig } from '@/server/ai/provider-config-service';
 import { createDatabaseClient } from '@/server/db/client';
 
@@ -13,6 +15,8 @@ type PersonalDraft = {
 
 /** 用户确认本次中文经历后，才将其作为个人化草稿的本地事实输入；草稿绝不自动发布。 */
 export async function POST(request: Request, context: { params: Promise<{ assetId: string }> }) {
+  if (isCloudTrialRuntime()) return cloudTrialUnavailableResponse();
+
   const { assetId } = await context.params;
   const prisma = createDatabaseClient();
   try {

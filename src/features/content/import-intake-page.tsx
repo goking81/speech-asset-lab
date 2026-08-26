@@ -16,7 +16,15 @@ type ImportState =
     }
   | { kind: 'ERROR'; message: string };
 
-export function ImportIntakePage() {
+export function ImportIntakePage({
+  apiBasePath = '/api/imports',
+  workspacePath = '/content',
+  batchPath = '/content/import',
+}: {
+  apiBasePath?: string;
+  workspacePath?: string;
+  batchPath?: string;
+}) {
   const [collectionTitle, setCollectionTitle] = useState('');
   const [text, setText] = useState('');
   const [files, setFiles] = useState<File[]>([]);
@@ -27,7 +35,7 @@ export function ImportIntakePage() {
     setState({ kind: 'SAVING' });
 
     try {
-      const response = await fetch('/api/imports', {
+      const response = await fetch(apiBasePath, {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({
@@ -75,7 +83,7 @@ export function ImportIntakePage() {
 
   return (
     <main className="page page--with-back-link import-intake">
-      <Link className="page-back-link" href="/content">
+      <Link className="page-back-link" href={workspacePath}>
         ← 返回内容工作台
       </Link>
       <header className="page-heading">
@@ -158,7 +166,7 @@ export function ImportIntakePage() {
                 </li>
               ))}
             </ul>
-            <Link className="import-intake__back" href={`/content/import/${state.batchId}`}>
+            <Link className="import-intake__back" href={`${batchPath}/${state.batchId}`}>
               查看批次详情
             </Link>
           </>

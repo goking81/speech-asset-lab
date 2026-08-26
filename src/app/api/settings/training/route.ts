@@ -4,11 +4,15 @@ import {
   TrainingSettingsService,
   type TrainingTargets,
 } from '@/server/settings/training-settings-service';
+import { isCloudTrialRuntime } from '@/lib/runtime-mode';
+import { cloudTrialUnavailableResponse } from '@/server/cloud-trial-response';
 import { createDatabaseClient } from '@/server/db/client';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET() {
+  if (isCloudTrialRuntime()) return cloudTrialUnavailableResponse();
+
   const prisma = createDatabaseClient();
   try {
     return NextResponse.json({ training: await new TrainingSettingsService(prisma).get() });
@@ -18,6 +22,8 @@ export async function GET() {
 }
 
 export async function PUT(request: Request) {
+  if (isCloudTrialRuntime()) return cloudTrialUnavailableResponse();
+
   const prisma = createDatabaseClient();
   try {
     const input = (await request.json()) as Partial<TrainingTargets>;

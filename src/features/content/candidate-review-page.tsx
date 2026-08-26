@@ -29,7 +29,17 @@ type ReviewCandidate = {
 
 type ReviewPayload = { documents: ReviewDocument[]; candidates: ReviewCandidate[] };
 
-export function CandidateReviewPage({ jobId }: { jobId: string }) {
+export function CandidateReviewPage({
+  jobId,
+  apiPath = '/api/content/candidates',
+  r1ApiPath = '/api/content/r1',
+  workspacePath = '/content',
+}: {
+  jobId: string;
+  apiPath?: string;
+  r1ApiPath?: string;
+  workspacePath?: string;
+}) {
   const [payload, setPayload] = useState<ReviewPayload | null>(null);
   const [documentId, setDocumentId] = useState('');
   const [segmentId, setSegmentId] = useState('');
@@ -56,7 +66,7 @@ export function CandidateReviewPage({ jobId }: { jobId: string }) {
   );
 
   async function refresh() {
-    const response = await fetch('/api/content/candidates');
+    const response = await fetch(apiPath);
     const result = (await response.json()) as ReviewPayload & { error?: string };
 
     if (!response.ok) {
@@ -73,7 +83,7 @@ export function CandidateReviewPage({ jobId }: { jobId: string }) {
   }
 
   useEffect(() => {
-    void fetch('/api/content/candidates')
+    void fetch(apiPath)
       .then(async (response) => {
         const result = (await response.json()) as ReviewPayload & { error?: string };
         if (!response.ok) {
@@ -90,7 +100,7 @@ export function CandidateReviewPage({ jobId }: { jobId: string }) {
       .catch((error: unknown) =>
         setStatus(error instanceof Error ? error.message : '无法读取候选审核数据。'),
       );
-  }, []);
+  }, [apiPath]);
 
   async function createCandidate() {
     if (!selectedSegment) {
@@ -100,7 +110,7 @@ export function CandidateReviewPage({ jobId }: { jobId: string }) {
     setIsSaving(true);
     setStatus(editingCandidateId ? '正在保存候选修改。' : '正在保存手动候选草稿。');
     try {
-      await request({
+      await requestCandidate(apiPath, {
         action: editingCandidateId ? 'UPDATE' : 'CREATE',
         ...(editingCandidateId ? { candidateId: editingCandidateId } : {}),
         sourceDocumentId: selectedDocument?.id,
@@ -137,7 +147,7 @@ export function CandidateReviewPage({ jobId }: { jobId: string }) {
     setIsRequestingR1(true);
     setStatus('正在检查 R1 发布包与 Provider 配置。');
     try {
-      const response = await fetch('/api/content/r1', {
+      const response = await fetch(r1ApiPath, {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ sourceDocumentId: selectedDocument.id }),
@@ -216,7 +226,7 @@ export function CandidateReviewPage({ jobId }: { jobId: string }) {
     setIsSaving(true);
     setStatus(action === 'APPROVE' ? '正在确认来源资产版本。' : '正在更新候选状态。');
     try {
-      await request({ action, candidateId, ...(target ? { status: target } : {}) });
+      await requestCandidate(apiPath, { action, candidateId, ...(target ? { status: target } : {}) });
       await refresh();
       setStatus(action === 'APPROVE' ? '已创建只读来源资产版本。' : '候选状态已更新。');
     } catch (error) {
@@ -237,7 +247,7 @@ export function CandidateReviewPage({ jobId }: { jobId: string }) {
 
   return (
     <main className="page page--with-back-link candidate-review candidate-review--workbench candidate-review--reference">
-      <Link className="page-back-link" href="/content">
+      <Link className="page-back-link" href={workspacePath}>
         <ArrowLeft aria-hidden="true" size={19} weight="regular" />
         返回内容工作台
       </Link>
@@ -266,7 +276,9 @@ export function CandidateReviewPage({ jobId }: { jobId: string }) {
 
       {!payload && !status && <p className="candidate-review__status">正在读取本地审核数据。</p>}
 
-      {payload?.documents.length === 0 && <EmptyState jobId={jobId} />}
+      {payload?.documents.length === 0 && (
+        <EmptyState importPath={`${workspacePath}/import`} jobId={jobId} workspacePath={workspacePath} />
+      )}
 
       {payload && payload.documents.length > 0 && (
         <section className="candidate-review__workbench" aria-label="来源与候选并排审核区">
@@ -498,17 +510,25 @@ function isAiReconstructedCandidate(modelDraftJson: string | null) {
   }
 }
 
-function EmptyState({ jobId }: { jobId: string }) {
+function EmptyState({
+  jobId,
+  importPath,
+  workspacePath,
+}: {
+  jobId: string;
+  importPath: string;
+  workspacePath: string;
+}) {
   return (
     <section className="candidate-review__empty" aria-labelledby="candidate-empty-heading">
       <p className="candidate-review__serial">REVIEW JOB · {jobId}</p>
       <h2 id="candidate-empty-heading">当前没有可建立候选的来源段落</h2>
       <p>请先导入并解析来源内容。解析文档、段落和原文件不会被直接当作来源资产。</p>
       <div className="candidate-review__actions">
-        <Link className="candidate-review__primary-action" href="/content/import">
+        <Link className="candidate-review__primary-action" href={importPath}>
           导入来源内容
         </Link>
-        <Link className="candidate-review__secondary-action" href="/content">
+        <Link className="candidate-review__secondary-action" href={workspacePath}>
           返回内容工作台
         </Link>
       </div>
@@ -516,8 +536,8 @@ function EmptyState({ jobId }: { jobId: string }) {
   );
 }
 
-async function request(body: Record<string, unknown>) {
-  const response = await fetch('/api/content/candidates', {
+async function requestCandidate(apiPath: string, body: Record<string, unknown>) {
+  const response = await fetch(apiPath, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify(body),
