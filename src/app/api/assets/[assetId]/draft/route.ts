@@ -3,13 +3,9 @@ import { NextResponse } from 'next/server';
 import { DraftTaskService } from '@/server/ai/draft-task-service';
 import { DraftTaskProcessor } from '@/server/ai/draft-task-processor';
 import { DeepSeekAiProvider } from '@/ai/provider';
-import { isCloudTrialRuntime } from '@/lib/runtime-mode';
-import { cloudTrialUnavailableResponse } from '@/server/cloud-trial-response';
 import { createDatabaseClient } from '@/server/db/client';
 
 export async function POST(request: Request, context: { params: Promise<{ assetId: string }> }) {
-  if (isCloudTrialRuntime()) return cloudTrialUnavailableResponse();
-
   const { assetId } = await context.params;
   const body = (await request.json()) as { role?: 'R2' | 'R3' };
   if (body.role !== 'R2' && body.role !== 'R3')

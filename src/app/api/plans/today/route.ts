@@ -4,14 +4,10 @@ import { UnconfiguredAiProvider } from '@/ai/provider';
 import { R5CoachService } from '@/server/ai/r5-coach-service';
 import { createDatabaseClient } from '@/server/db/client';
 import { LocalDailyPlanService } from '@/server/planning/local-daily-plan-service';
-import { isCloudTrialRuntime } from '@/lib/runtime-mode';
-import { cloudTrialUnavailableResponse } from '@/server/cloud-trial-response';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET() {
-  if (isCloudTrialRuntime()) return cloudTrialUnavailableResponse();
-
   let prisma: ReturnType<typeof createDatabaseClient> | undefined;
 
   try {

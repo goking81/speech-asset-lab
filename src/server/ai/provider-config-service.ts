@@ -1,14 +1,14 @@
 import type { PrismaClient } from '@prisma/client';
 
 /** 将本机环境变量投影为不含密钥的本地配置记录。 */
-export async function syncEnvironmentProviderConfig(prisma: PrismaClient, userId = 'local-user') {
+export async function syncEnvironmentProviderConfig(prisma: PrismaClient) {
   const providerKey = process.env.AI_PROVIDER;
   const modelName = process.env.AI_MODEL;
   const apiKey = process.env.AI_API_KEY;
   if (!providerKey || !modelName || !apiKey) return null;
 
   return prisma.aiProviderConfig.upsert({
-    where: { userId_providerKey_modelName: { userId, providerKey, modelName } },
+    where: { userId_providerKey_modelName: { userId: 'local-user', providerKey, modelName } },
     update: {
       baseUrl: process.env.AI_BASE_URL ?? null,
       secretRef: 'env:AI_API_KEY',
@@ -18,7 +18,7 @@ export async function syncEnvironmentProviderConfig(prisma: PrismaClient, userId
       isEnabled: true,
     },
     create: {
-      userId,
+      userId: 'local-user',
       providerKey,
       modelName,
       baseUrl: process.env.AI_BASE_URL ?? null,

@@ -51,19 +51,7 @@ function parseFailureLabel(reason: string) {
   return labels[reason] ?? reason;
 }
 
-export function ImportBatchDetailPage({
-  batchId,
-  apiBasePath = '/api/imports',
-  importPath = '/content/import',
-  reviewPath = '/content',
-  r1ApiPath = '/api/content/r1',
-}: {
-  batchId: string;
-  apiBasePath?: string;
-  importPath?: string;
-  reviewPath?: string;
-  r1ApiPath?: string;
-}) {
+export function ImportBatchDetailPage({ batchId }: { batchId: string }) {
   const [detail, setDetail] = useState<BatchDetail | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isParsing, setIsParsing] = useState(false);
@@ -74,7 +62,7 @@ export function ImportBatchDetailPage({
   const isCloudImport = isCloudImportRuntime();
 
   const refresh = useCallback(async () => {
-    const response = await fetch(`${apiBasePath}/${batchId}`);
+    const response = await fetch(`/api/imports/${batchId}`);
     const payload = await readJsonResponse<BatchDetail & { error?: string }>(response);
 
     if (!response.ok) {
@@ -82,10 +70,10 @@ export function ImportBatchDetailPage({
     }
 
     setDetail(payload);
-  }, [apiBasePath, batchId]);
+  }, [batchId]);
 
   useEffect(() => {
-    void fetch(`${apiBasePath}/${batchId}`)
+    void fetch(`/api/imports/${batchId}`)
       .then(async (response) => {
         const payload = await readJsonResponse<BatchDetail & { error?: string }>(response);
 
@@ -98,7 +86,7 @@ export function ImportBatchDetailPage({
       .catch((reason: unknown) =>
         setError(reason instanceof Error ? reason.message : '无法读取导入批次。'),
       );
-  }, [apiBasePath, batchId]);
+  }, [batchId]);
 
   useEffect(() => {
     if (!isParsing) return;
@@ -118,7 +106,7 @@ export function ImportBatchDetailPage({
     setError(null);
 
     try {
-      const response = await fetch(`${apiBasePath}/${batchId}`, { method: 'POST' });
+      const response = await fetch(`/api/imports/${batchId}`, { method: 'POST' });
       const payload = await readJsonResponse<{ error?: string }>(response);
 
       if (!response.ok) {
@@ -141,7 +129,7 @@ export function ImportBatchDetailPage({
     setError(null);
 
     try {
-      const response = await fetch(`${apiBasePath}/${batchId}`, {
+      const response = await fetch(`/api/imports/${batchId}`, {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ forceOcrFileId: fileId }),
@@ -171,7 +159,7 @@ export function ImportBatchDetailPage({
     setError(null);
 
     try {
-      const response = await fetch(r1ApiPath, {
+      const response = await fetch('/api/content/r1', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ sourceDocumentId }),
@@ -235,7 +223,7 @@ export function ImportBatchDetailPage({
 
   return (
     <main className="page page--with-back-link import-intake">
-      <Link className="page-back-link" href={importPath}>
+      <Link className="page-back-link" href="/content/import">
         ← 返回导入内容
       </Link>
       <header className="page-heading">
@@ -287,7 +275,7 @@ export function ImportBatchDetailPage({
                     {isDrafting ? '正在生成 AI 草稿…' : `AI 筛选候选：${document.title}`}
                   </button>
                 ))}
-                <Link href={reviewPath}>前往内容工作台审核</Link>
+                <Link href="/content">前往内容工作台审核</Link>
                 {draftStatus && <p className="gate-demo__status">{draftStatus}</p>}
               </div>
             )}

@@ -3,8 +3,6 @@
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 
-import { isCloudTrialRuntime } from '@/lib/runtime-mode';
-
 type Detail = {
   sourceVersion: { title: string; version: number };
   personalVersion: null | {
@@ -43,7 +41,6 @@ const nodeLabel: Record<string, string> = {
 export function AssetDetailPage({ assetId }: { assetId: string }) {
   const [detail, setDetail] = useState<Detail | null>(null);
   const [error, setError] = useState('');
-  const isCloudTrial = isCloudTrialRuntime();
   useEffect(() => {
     void fetch(`/api/assets/${assetId}`)
       .then(async (r) => {
@@ -80,24 +77,14 @@ export function AssetDetailPage({ assetId }: { assetId: string }) {
       <header className="page-heading">
         <p className="page-heading__eyebrow">ASSET / DETAIL</p>
         <h1>{personal?.triggerName ?? detail.sourceVersion.title}</h1>
-        <p>
-          {isCloudTrial
-            ? `内置来源版本 v${detail.sourceVersion.version} 只读；你的试用进度仅保存在当前浏览器。`
-            : `来源版本 v${detail.sourceVersion.version} 只读；个人版本与来源版本独立保存。`}
-        </p>
+        <p>来源版本 v{detail.sourceVersion.version} 只读；个人版本与来源版本独立保存。</p>
       </header>
       {!personal ? (
         <section className="asset-library__empty">
           <h2>尚未建立个人版本</h2>
-          {isCloudTrial ? (
-            <Link className="asset-library__primary-action" href="/lab">
-              返回试用训练
-            </Link>
-          ) : (
-            <Link className="asset-library__primary-action" href={`/assets/${assetId}/personalize`}>
-              建立个人版本
-            </Link>
-          )}
+          <Link className="asset-library__primary-action" href={`/assets/${assetId}/personalize`}>
+            建立个人版本
+          </Link>
         </section>
       ) : (
         <section className="asset-library__empty">
@@ -105,30 +92,22 @@ export function AssetDetailPage({ assetId }: { assetId: string }) {
           <h2>{personal.coreIdea}</h2>
           <FlowLegend nodes={personal.nodes} />
           <p className="asset-flow">{renderFlow(personal)}</p>
-          {isCloudTrial ? (
-            <Link className="asset-library__primary-action" href="/lab">
-              在试用版开始练习
+          <Link className="asset-library__primary-action" href={`/assets/${assetId}/personalize`}>
+            手动改写为我的版本
+          </Link>
+          <details className="asset-detail__optional">
+            <summary>AI 辅助改写（可选）</summary>
+            <p>
+              在“手动改写”页用中文写下你的个人经历，再由 AI
+              按当前语流结构生成待确认草稿。它不会覆盖当前版本，也不影响直接练习。
+            </p>
+            <Link
+              className="asset-library__secondary-action"
+              href={`/assets/${assetId}/personalize`}
+            >
+              前往 AI 辅助改写
             </Link>
-          ) : (
-            <>
-              <Link className="asset-library__primary-action" href={`/assets/${assetId}/personalize`}>
-                手动改写为我的版本
-              </Link>
-              <details className="asset-detail__optional">
-                <summary>AI 辅助改写（可选）</summary>
-                <p>
-                  在“手动改写”页用中文写下你的个人经历，再由 AI
-                  按当前语流结构生成待确认草稿。它不会覆盖当前版本，也不影响直接练习。
-                </p>
-                <Link
-                  className="asset-library__secondary-action"
-                  href={`/assets/${assetId}/personalize`}
-                >
-                  前往 AI 辅助改写
-                </Link>
-              </details>
-            </>
-          )}
+          </details>
         </section>
       )}
     </main>

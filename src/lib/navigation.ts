@@ -19,16 +19,13 @@ export const primaryNavigation = [
 ] as const satisfies readonly PrimaryNavigationItem[];
 
 /** 线上试用版不暴露依赖本机文件系统的内容工作台入口。 */
-export function getPrimaryNavigation(isCloudTrial: boolean) {
+export function getPrimaryNavigation(isCloudTrial: boolean, isCloudImportEnabled = false) {
   if (!isCloudTrial) return primaryNavigation;
 
   return primaryNavigation.filter(
     (item) =>
-      item.href !== '/content' &&
-      item.href !== '/practice' &&
+      (isCloudImportEnabled || item.href !== '/content') &&
       item.href !== '/graph' &&
-      item.href !== '/profile' &&
-      item.href !== '/history' &&
-      item.href !== '/settings',
+      item.href !== '/profile',
   );
 }

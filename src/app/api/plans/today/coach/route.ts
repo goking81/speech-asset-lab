@@ -5,14 +5,10 @@ import { syncEnvironmentProviderConfig } from '@/server/ai/provider-config-servi
 import { R5CoachService, R5CoachValidationError } from '@/server/ai/r5-coach-service';
 import { createDatabaseClient } from '@/server/db/client';
 import { LocalDailyPlanService } from '@/server/planning/local-daily-plan-service';
-import { isCloudTrialRuntime } from '@/lib/runtime-mode';
-import { cloudTrialUnavailableResponse } from '@/server/cloud-trial-response';
 
 export const dynamic = 'force-dynamic';
 
 export async function POST() {
-  if (isCloudTrialRuntime()) return cloudTrialUnavailableResponse();
-
   const prisma = createDatabaseClient();
   try {
     const plan = await new LocalDailyPlanService(prisma).getOrCreateTodayPlan();

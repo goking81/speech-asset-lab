@@ -1,13 +1,13 @@
 import { ImportBatchDetailPage } from '@/features/content/import-batch-detail-page';
 import { CloudTrialUnavailablePage } from '@/features/cloud-trial/cloud-trial-unavailable-page';
-import { isCloudTrialRuntime } from '@/lib/runtime-mode';
+import { isLocalOnlyFeatureBlocked } from '@/lib/runtime-mode';
 
 export default async function ImportBatchPage({
   params,
 }: {
   params: Promise<{ batchId: string }>;
 }) {
-  if (isCloudTrialRuntime()) return <CloudTrialUnavailablePage />;
+  if (isLocalOnlyFeatureBlocked()) return <CloudTrialUnavailablePage />;
 
   const { batchId } = await params;
 

@@ -4,15 +4,11 @@ import {
   SupportedQuestionService,
   SupportedQuestionValidationError,
 } from '@/server/questions/supported-question-service';
-import { isCloudTrialRuntime } from '@/lib/runtime-mode';
-import { cloudTrialUnavailableResponse } from '@/server/cloud-trial-response';
 import { createDatabaseClient } from '@/server/db/client';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET() {
-  if (isCloudTrialRuntime()) return cloudTrialUnavailableResponse();
-
   let prisma: ReturnType<typeof createDatabaseClient> | undefined;
   try {
     prisma = createDatabaseClient();
@@ -27,8 +23,6 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
-  if (isCloudTrialRuntime()) return cloudTrialUnavailableResponse();
-
   const prisma = createDatabaseClient();
   try {
     const body = (await request.json()) as Record<string, unknown>;

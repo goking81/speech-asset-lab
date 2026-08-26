@@ -1,13 +1,13 @@
 import { NextResponse } from 'next/server';
 
-import { isCloudImportRuntime, isCloudTrialRuntime } from '@/lib/runtime-mode';
+import { isCloudImportRuntime, isLocalOnlyFeatureBlocked } from '@/lib/runtime-mode';
 import { cloudTrialUnavailableResponse } from '@/server/cloud-trial-response';
 import { createDatabaseClient } from '@/server/db/client';
 
 type RouteContext = { params: Promise<{ batchId: string }> };
 
 export async function GET(_request: Request, context: RouteContext) {
-  if (isCloudTrialRuntime()) return cloudTrialUnavailableResponse();
+  if (isLocalOnlyFeatureBlocked()) return cloudTrialUnavailableResponse();
 
   const { batchId } = await context.params;
   const prisma = createDatabaseClient();
@@ -71,7 +71,7 @@ export async function GET(_request: Request, context: RouteContext) {
 }
 
 export async function POST(request: Request, context: RouteContext) {
-  if (isCloudTrialRuntime()) return cloudTrialUnavailableResponse();
+  if (isLocalOnlyFeatureBlocked()) return cloudTrialUnavailableResponse();
 
   const { batchId } = await context.params;
   const body = (await request.json().catch(() => ({}))) as { forceOcrFileId?: string };

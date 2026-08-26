@@ -1,7 +1,5 @@
 import { NextResponse } from 'next/server';
 
-import { isCloudTrialRuntime } from '@/lib/runtime-mode';
-import { cloudTrialUnavailableResponse } from '@/server/cloud-trial-response';
 import { createDatabaseClient } from '@/server/db/client';
 import {
   P08SessionService,
@@ -11,8 +9,6 @@ import {
 export const dynamic = 'force-dynamic';
 
 export async function POST(request: Request) {
-  if (isCloudTrialRuntime()) return cloudTrialUnavailableResponse();
-
   const prisma = createDatabaseClient();
   try {
     const body = (await request.json()) as { questionPlanId?: unknown };

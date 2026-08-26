@@ -1,8 +1,6 @@
 import { NextResponse } from 'next/server';
 
 import { DeepSeekAiProvider } from '@/ai/provider';
-import { isCloudTrialRuntime } from '@/lib/runtime-mode';
-import { cloudTrialUnavailableResponse } from '@/server/cloud-trial-response';
 import { syncEnvironmentProviderConfig } from '@/server/ai/provider-config-service';
 import { R4DraftService } from '@/server/ai/r4-draft-service';
 import { createDatabaseClient } from '@/server/db/client';
@@ -11,8 +9,6 @@ import { SupportedQuestionValidationError } from '@/server/questions/supported-q
 export const dynamic = 'force-dynamic';
 
 export async function POST(request: Request) {
-  if (isCloudTrialRuntime()) return cloudTrialUnavailableResponse();
-
   const prisma = createDatabaseClient();
   try {
     const body = (await request.json()) as Record<string, unknown>;

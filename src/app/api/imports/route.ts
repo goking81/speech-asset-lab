@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 
-import { isCloudImportRuntime, isCloudTrialRuntime } from '@/lib/runtime-mode';
+import { isCloudImportRuntime, isLocalOnlyFeatureBlocked } from '@/lib/runtime-mode';
 import { cloudTrialUnavailableResponse } from '@/server/cloud-trial-response';
 import { createDatabaseClient } from '@/server/db/client';
 import { CloudSourceOriginalStoreError } from '@/server/storage/cloud-source-original-store';
@@ -17,7 +17,7 @@ type IntakeRequest = {
 };
 
 export async function POST(request: Request) {
-  if (isCloudTrialRuntime()) return cloudTrialUnavailableResponse();
+  if (isLocalOnlyFeatureBlocked()) return cloudTrialUnavailableResponse();
 
   const body = (await request.json().catch(() => null)) as IntakeRequest | null;
   if (!body) {
