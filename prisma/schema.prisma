@@ -389,7 +389,6 @@ model ImportBatchFile {
   sizeBytes            Int
   exactFileHash        String?
   normalizedTextHash   String?
-  storageObjectKey     String?          @unique
   status               ImportFileStatus @default(PENDING)
   skipReason           String?
   parseProgressCurrent Int?

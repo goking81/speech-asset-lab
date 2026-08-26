@@ -6,7 +6,7 @@ import { usePathname } from 'next/navigation';
 import type { PropsWithChildren } from 'react';
 
 import { getPrimaryNavigation, type PrimaryNavigationItem } from '@/lib/navigation';
-import { isCloudImportRuntime, isCloudTrialRuntime } from '@/lib/runtime-mode';
+import { isCloudTrialRuntime } from '@/lib/runtime-mode';
 
 import { StatusStrip } from './status-strip';
 
@@ -18,8 +18,7 @@ export function AppShell({ children }: PropsWithChildren) {
   }
 
   const isCloudTrial = isCloudTrialRuntime();
-  const isCloudImportEnabled = isCloudImportRuntime();
-  const navigation = getPrimaryNavigation(isCloudTrial, isCloudImportEnabled);
+  const navigation = getPrimaryNavigation(isCloudTrial);
   const featuredNavigation = navigation.filter(
     (item) =>
       item.href === '/lab' ||
@@ -70,14 +69,8 @@ export function AppShell({ children }: PropsWithChildren) {
           </div>
         </nav>
         <p className="sidebar-note">
-          {isCloudImportEnabled ? '私有资料工作台' : isCloudTrial ? '内置资产试用版' : '本地工作台'}
-          <span>
-            {isCloudImportEnabled
-              ? '来源原件私有保存，候选须人工确认'
-              : isCloudTrial
-                ? '不接收或保存本机资料'
-                : '所有内容保留在你的设备上'}
-          </span>
+          {isCloudTrial ? '内置资产试用版' : '本地工作台'}
+          <span>{isCloudTrial ? '不接收或保存本机资料' : '所有内容保留在你的设备上'}</span>
         </p>
       </aside>
       <div className="app-shell__workspace">

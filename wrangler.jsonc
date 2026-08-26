@@ -9,20 +9,12 @@
     "directory": ".open-next/assets",
     "binding": "ASSETS",
   },
-  "ai": {
-    "binding": "AI",
-  },
   "build": {
     "command": "pnpm run cloud:build",
   },
   "vars": {
     "APP_VARIANT": "cloud-trial",
     "NEXT_PUBLIC_APP_VARIANT": "cloud-trial",
-    "CLOUD_IMPORT_ENABLED": "false",
-    "NEXT_PUBLIC_CLOUD_IMPORT_ENABLED": "false",
-    "SUPABASE_URL": "https://kzxncbmooeaipgbipaid.supabase.co",
-    "CLOUD_OCR_MAX_FILE_BYTES": "1048576",
-    "CLOUD_OCR_MAX_PAGES": "3",
     "AI_PROVIDER": "deepseek",
     "AI_BASE_URL": "https://api.deepseek.com",
     "AI_MODEL": "deepseek-v4-flash",

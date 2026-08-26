@@ -1,13 +1,13 @@
 import { NextResponse } from 'next/server';
 
-import { isCloudImportRuntime, isLocalOnlyFeatureBlocked } from '@/lib/runtime-mode';
+import { isCloudTrialRuntime } from '@/lib/runtime-mode';
 import { cloudTrialUnavailableResponse } from '@/server/cloud-trial-response';
 import { createDatabaseClient } from '@/server/db/client';
 
 type RouteContext = { params: Promise<{ batchId: string }> };
 
 export async function GET(_request: Request, context: RouteContext) {
-  if (isLocalOnlyFeatureBlocked()) return cloudTrialUnavailableResponse();
+  if (isCloudTrialRuntime()) return cloudTrialUnavailableResponse();
 
   const { batchId } = await context.params;
   const prisma = createDatabaseClient();
@@ -51,49 +51,24 @@ export async function GET(_request: Request, context: RouteContext) {
             document?.parseStatus === 'PARSED'
               ? document.id
               : (document?.duplicatesFrom[0]?.toDocumentId ?? null),
-          aiSourceDocumentTitle:
-            document?.parseStatus === 'PARSED'
-              ? document.title
-              : document?.duplicatesFrom[0]?.toDocumentId
-                ? file.originalFileName
-                : null,
         };
       }),
     });
-  } catch (error) {
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : '无法读取导入批次。' },
-      { status: 500 },
-    );
   } finally {
     await prisma.$disconnect();
   }
 }
 
 export async function POST(request: Request, context: RouteContext) {
-  if (isLocalOnlyFeatureBlocked()) return cloudTrialUnavailableResponse();
+  if (isCloudTrialRuntime()) return cloudTrialUnavailableResponse();
 
   const { batchId } = await context.params;
   const body = (await request.json().catch(() => ({}))) as { forceOcrFileId?: string };
   const prisma = createDatabaseClient();
 
   try {
-    if (isCloudImportRuntime()) {
-      const parser = new (
-        await import('@/server/imports/cloud-document-parser-service')
-      ).CloudDocumentParserService(prisma);
-      if (body.forceOcrFileId) {
-        const document = await parser.reparsePdfWithOcr(batchId, body.forceOcrFileId);
-        return NextResponse.json({ reparsedDocumentId: document.id });
-      }
-
-      const documents = await parser.parseReadyFiles(batchId);
-      return NextResponse.json({ parsedDocuments: documents.length });
-    }
-
-    const parser = new (await import('@/server/imports/text-parser-service')).TextParserService(
-      prisma,
-    );
+    const { TextParserService } = await import('@/server/imports/text-parser-service');
+    const parser = new TextParserService(prisma);
     if (body.forceOcrFileId) {
       const document = await parser.reparsePdfWithOcr(batchId, body.forceOcrFileId);
       return NextResponse.json({ reparsedDocumentId: document.id });
