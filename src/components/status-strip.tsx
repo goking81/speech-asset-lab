@@ -41,8 +41,10 @@ export function StatusStrip() {
           </dd>
         </div>
         <div>
-          <dt>{isCloudTrial ? '云端数据' : '本地数据'}</dt>
-          <dd className="status-strip__saved">已保存</dd>
+          <dt>{isCloudTrial ? '试用进度' : '本地数据'}</dt>
+          <dd className="status-strip__saved">
+            {isCloudTrial ? '浏览器本地' : '已保存'}
+          </dd>
         </div>
       </dl>
     </header>
