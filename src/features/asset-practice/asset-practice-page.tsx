@@ -13,13 +13,7 @@ import {
 
 type P05Step =
   'READING' | 'KEYWORD_RECALL' | 'LOGIC_SKELETON_RECALL' | 'NO_HINT_RECALL' | 'ANCHOR_TEXT';
-type HintLevel =
-  | 'H0_NONE'
-  | 'H1_ANGLE'
-  | 'H2_ASSET_NAME'
-  | 'H3_LOGIC_NODES'
-  | 'H4_ENGLISH_CHUNKS'
-  | 'H5_FULL_FLOW';
+type HintLevel = 'H0_NONE';
 
 type CheckpointPayload = {
   oralAttemptConfirmed?: boolean;
@@ -37,16 +31,6 @@ type PracticeSession = {
   startedAt: string;
   completedAt: string | null;
   checkpoint: { currentStep: P05Step; payload: CheckpointPayload; updatedAt: string } | null;
-  anchorQuestion: string;
-  personalAsset: {
-    id: string;
-    sourceReference: {
-      title: string;
-      coreFlow: string;
-      extendedFlow: string | null;
-      version: number;
-    } | null;
-  };
   personalAssetVersion: {
     id: string;
     version: number;
@@ -75,12 +59,12 @@ type PracticeForm = {
   textDraft: string;
 };
 
-const steps: Array<{ id: P05Step; label: string }> = [
-  { id: 'READING', label: '熟读理解' },
-  { id: 'KEYWORD_RECALL', label: '关键词唤醒' },
-  { id: 'LOGIC_SKELETON_RECALL', label: '逻辑骨架复现' },
-  { id: 'NO_HINT_RECALL', label: '无提示复现' },
-  { id: 'ANCHOR_TEXT', label: '锚点问题调用' },
+const steps: Array<{ id: P05Step; label: string; lookAt: string; action: string }> = [
+  { id: 'READING', label: '看全文读顺', lookAt: '完整资产', action: '连续读顺' },
+  { id: 'KEYWORD_RECALL', label: '看词伙说出', lookAt: '英文词伙', action: '组回表达' },
+  { id: 'LOGIC_SKELETON_RECALL', label: '看结构复述', lookAt: '中文结构', action: '组织英文' },
+  { id: 'NO_HINT_RECALL', label: '无提示复现', lookAt: '不看提示', action: '口头复现' },
+  { id: 'ANCHOR_TEXT', label: '默写输出', lookAt: '不看提示', action: '写下表达' },
 ];
 
 const completionOptions: Array<{ value: CompletionRating; label: string }> = [
@@ -116,15 +100,6 @@ const nodeSkeletonLabel: Record<string, string> = {
   CONDITION: '条件',
   ACTION: '行动',
   RESULT: '结果',
-};
-
-const hintRank: Record<HintLevel, number> = {
-  H0_NONE: 0,
-  H1_ANGLE: 1,
-  H2_ASSET_NAME: 2,
-  H3_LOGIC_NODES: 3,
-  H4_ENGLISH_CHUNKS: 4,
-  H5_FULL_FLOW: 5,
 };
 
 export function AssetPracticePage({ sessionId }: { sessionId: string }) {
@@ -209,7 +184,7 @@ export function AssetPracticePage({ sessionId }: { sessionId: string }) {
       delete attemptKeys.current[stepType];
       setStatus(
         result.session.status === 'COMPLETED'
-          ? '锚点文字已保存。本页不会自动评价未提交的口头过程。'
+          ? '默写已保存。本页不会自动评价口头过程，也不会改写资产。'
           : '已保存，继续下一步。',
       );
     } catch (reason: unknown) {
@@ -301,10 +276,6 @@ export function AssetPracticePage({ sessionId }: { sessionId: string }) {
           {session.currentStep === 'READING' && (
             <ReadingStep
               version={session.personalAssetVersion}
-              supplement={
-                session.personalAsset.sourceReference?.extendedFlow ??
-                session.personalAssetVersion.extendedFlow
-              }
               isSaving={isSubmitting}
               onComplete={() => void saveAttempt('READING', {})}
             />
@@ -338,7 +309,7 @@ export function AssetPracticePage({ sessionId }: { sessionId: string }) {
                   oralAttemptConfirmed: form.oralAttemptConfirmed,
                   completionRating: form.completionRating,
                   difficultyRating: form.difficultyRating,
-                  highestHintLevel: form.highestHintLevel,
+                  highestHintLevel: 'H0_NONE',
                 })
               }
             />
@@ -361,8 +332,7 @@ export function AssetPracticePage({ sessionId }: { sessionId: string }) {
             />
           )}
           {session.currentStep === 'ANCHOR_TEXT' && (
-            <AnchorTextStep
-              question={session.anchorQuestion}
+            <DictationStep
               text={form.textDraft}
               isSubmitting={isSubmitting}
               canSubmit={canSubmitText}
@@ -371,7 +341,7 @@ export function AssetPracticePage({ sessionId }: { sessionId: string }) {
             />
           )}
         </section>
-        <PracticeReference currentStep={session.currentStep} session={session} />
+        <PracticeReference currentStep={session.currentStep} />
       </div>
 
       {isOral && (
@@ -397,10 +367,20 @@ function PracticeSteps({ currentStep }: { currentStep: P05Step }) {
             key={step.id}
           >
             <span aria-hidden="true">{index < currentIndex ? '✓' : '○'}</span>
-            <span aria-current={step.id === currentStep ? 'step' : undefined}>{step.label}</span>
+            <span>
+              <strong aria-current={step.id === currentStep ? 'step' : undefined}>
+                {step.label}
+              </strong>
+              <small>
+                看：{step.lookAt}｜做：{step.action}
+              </small>
+            </span>
           </li>
         ))}
       </ol>
+      <p className="asset-practice__prompt-fade">
+        提示会逐步减少：全文 → 词伙 → 结构 → 无提示 → 默写。
+      </p>
       <p>完成标准：每一步都保存为独立训练记录；重练不会覆盖旧记录。</p>
     </aside>
   );
@@ -408,60 +388,59 @@ function PracticeSteps({ currentStep }: { currentStep: P05Step }) {
 
 function ReadingStep({
   version,
-  supplement,
   isSaving,
   onComplete,
 }: {
   version: PracticeSession['personalAssetVersion'];
-  supplement: string | null;
   isSaving: boolean;
   onComplete: () => void;
 }) {
   return (
     <div className="asset-practice__step">
       <p className="asset-practice__serial">STEP / READING</p>
-      <h2 id="asset-practice-current-step">熟读理解</h2>
-      <p>请连续熟读这项已确认的个人语流。颜色仅标示逻辑位置，不代表训练成绩。</p>
+      <h2 id="asset-practice-current-step">第 1 步：看全文读顺</h2>
+      <p>先看完整资产，连续读顺意思与节奏。下一步会收起全文，只保留词伙。</p>
       <p className="asset-flow asset-practice__flow">{renderFlow(version)}</p>
-      {supplement && (
-        <section className="asset-practice__supplement" aria-label="原文词伙与中文注释">
-          <p className="asset-practice__supplement-title">原文词伙与中文注释</p>
-          <p>{supplement}</p>
-          <small>这是理解参考，不计入英文训练正文，也不会影响训练记录。</small>
-        </section>
-      )}
       <button
         className="asset-practice__primary-action"
         disabled={isSaving}
         onClick={onComplete}
         type="button"
       >
-        {isSaving ? '正在保存' : '完成熟读'}
+        {isSaving ? '正在保存' : '我已经读顺'}
       </button>
     </div>
   );
 }
 
 function KeywordRecallStep({ version, form, isSaving, canSave, onChange, onSave }: OralStepProps) {
-  const cues = version.expressionUnits
-    .map((unit) => unit.retrievalCue?.trim() || unit.text.trim())
+  const savedPhrases = version.expressionUnits
+    .map((unit) => unit.text.trim())
     .filter(Boolean)
     .slice(0, 5);
+  // 早期确认资产可能尚未单独保存词伙；此时只取已冻结的逻辑节点作为词伙兜底，不回退展示全文。
+  const phrases =
+    savedPhrases.length > 0
+      ? savedPhrases
+      : version.nodes
+          .map((node) => node.text.trim())
+          .filter(Boolean)
+          .slice(0, 5);
   return (
     <div className="asset-practice__step">
       <p className="asset-practice__serial">STEP / KEYWORD RECALL</p>
-      <h2 id="asset-practice-current-step">关键词唤醒</h2>
-      <p>请根据下方检索提示或关键词口头复现。系统不录音、不转写，也不会判断口头表现。</p>
-      <section className="asset-practice__cue" aria-label="检索提示与关键词">
-        <p>触发名称：{version.triggerName}</p>
-        {cues.length > 0 ? (
+      <h2 id="asset-practice-current-step">第 2 步：看词伙说出</h2>
+      <p>只看英文词伙，把它们组回自己的完整表达；这一轮不再展示全文。</p>
+      <section className="asset-practice__cue" aria-label="英文词伙">
+        <p>本轮词伙</p>
+        {phrases.length > 0 ? (
           <ul>
-            {cues.map((cue) => (
-              <li key={cue}>{cue}</li>
+            {phrases.map((phrase) => (
+              <li key={phrase}>{phrase}</li>
             ))}
           </ul>
         ) : (
-          <p>此资产尚未保存额外 ExpressionUnit；请先从触发名称回忆。</p>
+          <p>此资产暂未保存可展示的词伙；请按你已记住的表达完成本轮口头尝试。</p>
         )}
       </section>
       <OralAttemptControls
@@ -480,12 +459,11 @@ function LogicSkeletonStep({ version, form, isSaving, canSave, onChange, onSave 
   return (
     <div className="asset-practice__step">
       <p className="asset-practice__serial">STEP / LOGIC SKELETON</p>
-      <h2 id="asset-practice-current-step">逻辑骨架复现</h2>
-      <p>请只根据中文逻辑骨架口头复现英文。系统不录音，也不会推断你的真实口头表现。</p>
+      <h2 id="asset-practice-current-step">第 3 步：看结构复述</h2>
+      <p>只看中文逻辑结构，自己组织英文。下一步连结构也会收起。</p>
       <section className="asset-practice__skeleton" aria-label="中文逻辑骨架">
         {skeleton}
       </section>
-      <HintPanel form={form} version={version} onChange={onChange} skeleton={skeleton} />
       <OralAttemptControls
         canSave={canSave}
         form={form}
@@ -508,10 +486,12 @@ function NoHintRecallStep({
   return (
     <div className="asset-practice__step asset-practice__step--no-hint">
       <p className="asset-practice__serial">STEP / NO HINT</p>
-      <h2 id="asset-practice-current-step">无提示复现</h2>
-      <p>请在不查看关键词、逻辑骨架、英文词伙或完整语流的情况下，口头复现这项资产。</p>
+      <h2 id="asset-practice-current-step">第 4 步：无提示复现</h2>
+      <p>这一轮不看全文、词伙或结构，直接口头复现你记住的完整意思。</p>
       <PracticeTimer startedAt={stepStartedAt} />
-      <p className="asset-practice__no-hint-note">当前为 H0。此步骤不会显示或展开任何提示材料。</p>
+      <p className="asset-practice__no-hint-note">
+        当前没有可展开的提示材料。下一步把你记住的表达写下来。
+      </p>
       <OralAttemptControls
         canSave={canSave}
         form={form}
@@ -523,15 +503,13 @@ function NoHintRecallStep({
   );
 }
 
-function AnchorTextStep({
-  question,
+function DictationStep({
   text,
   isSubmitting,
   canSubmit,
   onChange,
   onSubmit,
 }: {
-  question: string;
   text: string;
   isSubmitting: boolean;
   canSubmit: boolean;
@@ -540,25 +518,21 @@ function AnchorTextStep({
 }) {
   return (
     <div className="asset-practice__step">
-      <p className="asset-practice__serial">STEP / ANCHOR TEXT</p>
-      <h2 id="asset-practice-current-step">锚点问题调用</h2>
-      <section className="asset-practice__anchor-question">
-        <p>问题</p>
-        <strong>{question}</strong>
-      </section>
-      <p>你可以先口头回答，再输入希望系统之后分析的版本。本页只保存实际提交的文字。</p>
-      <label className="asset-practice__answer-label" htmlFor="asset-anchor-answer">
-        本次文字回答
+      <p className="asset-practice__serial">STEP / DICTATION</p>
+      <h2 id="asset-practice-current-step">第 5 步：默写输出</h2>
+      <p>不看任何提示，写下你记得的英语表达。无需逐字一致，尽量保留资产的逻辑和关键表达。</p>
+      <label className="asset-practice__answer-label" htmlFor="asset-dictation-answer">
+        本次默写
       </label>
       <textarea
-        id="asset-anchor-answer"
+        id="asset-dictation-answer"
         onChange={(event) => onChange(event.target.value)}
-        placeholder="输入你的回答；任意非空文字即可保存。"
+        placeholder="不看任何提示，写下你现在记得的英语表达。"
         rows={8}
         value={text}
       />
       <p className="asset-practice__answer-boundary">
-        去除首尾空白后非空即可提交，不设词数、句数或字符数门槛。
+        去除首尾空白后非空即可保存；本页不做逐字比对，也不会自动发起 AI 评价。
       </p>
       <button
         className="asset-practice__primary-action"
@@ -566,7 +540,7 @@ function AnchorTextStep({
         onClick={onSubmit}
         type="button"
       >
-        {isSubmitting ? '正在保存' : '提交并完成'}
+        {isSubmitting ? '正在保存' : '保存默写并完成'}
       </button>
     </div>
   );
@@ -658,113 +632,32 @@ function OralAttemptControls({
   );
 }
 
-function HintPanel({
-  version,
-  skeleton,
-  form,
-  onChange,
-}: {
-  version: PracticeSession['personalAssetVersion'];
-  skeleton: string;
-  form: PracticeForm;
-  onChange: (patch: Partial<PracticeForm>) => void;
-}) {
-  const activeLevel = form.highestHintLevel;
-  const expressionChunks = version.expressionUnits
-    .map((unit) => unit.text)
-    .filter(Boolean)
-    .slice(0, 5);
-  const hintContents: Record<Exclude<HintLevel, 'H0_NONE'>, React.ReactNode> = {
-    H1_ANGLE: '先回忆这项资产要表达的方向，再组织自己的英文复现。',
-    H2_ASSET_NAME: version.triggerName,
-    H3_LOGIC_NODES: skeleton,
-    H4_ENGLISH_CHUNKS:
-      expressionChunks.length > 0
-        ? expressionChunks.join(' / ')
-        : '这项个人资产尚未保存可展示的英文词伙。',
-    H5_FULL_FLOW: version.coreFlow,
-  };
-  const hintLabels: Record<Exclude<HintLevel, 'H0_NONE'>, string> = {
-    H1_ANGLE: '角度提示',
-    H2_ASSET_NAME: '资产名称',
-    H3_LOGIC_NODES: '逻辑节点',
-    H4_ENGLISH_CHUNKS: '英文词伙',
-    H5_FULL_FLOW: '完整个人语流',
-  };
-  const visibleLevel = activeLevel === 'H0_NONE' ? null : activeLevel;
+function PracticeReference({ currentStep }: { currentStep: P05Step }) {
+  const currentIndex = steps.findIndex((step) => step.id === currentStep);
+  const current = steps[currentIndex];
+  const next = steps[currentIndex + 1] ?? null;
   return (
-    <section className="asset-practice__hints" aria-labelledby="asset-practice-hints-heading">
-      <div>
-        <p className="asset-practice__serial">ACTIVE HINTS</p>
-        <h3 id="asset-practice-hints-heading">主动提示</h3>
-      </div>
-      <p>当前最高提示：H{hintRank[activeLevel]}。只有你主动展开时才记录提示等级。</p>
-      <div className="asset-practice__hint-actions">
-        {(Object.keys(hintLabels) as Array<Exclude<HintLevel, 'H0_NONE'>>).map((level) => (
-          <button
-            className={hintRank[level] <= hintRank[activeLevel] ? 'is-used' : ''}
-            key={level}
-            onClick={() => {
-              if (hintRank[level] > hintRank[activeLevel]) onChange({ highestHintLevel: level });
-            }}
-            type="button"
-          >
-            展开 H{hintRank[level]} {hintLabels[level]}
-          </button>
-        ))}
-      </div>
-      {visibleLevel && (
-        <div className="asset-practice__hint-content">
-          <strong>
-            H{hintRank[visibleLevel]} {hintLabels[visibleLevel]}
-          </strong>
-          <p>{hintContents[visibleLevel]}</p>
-        </div>
-      )}
-    </section>
-  );
-}
-
-function PracticeReference({
-  currentStep,
-  session,
-}: {
-  currentStep: P05Step;
-  session: PracticeSession;
-}) {
-  if (currentStep === 'NO_HINT_RECALL') {
-    return (
-      <aside className="asset-practice__reference asset-practice__reference--no-hint">
-        <p className="asset-practice__serial">H0 / NO MATERIAL</p>
-        <h2>保持无提示</h2>
-        <p>本步骤不提供关键词、骨架、英文词伙、完整个人语流或来源对照。</p>
-      </aside>
-    );
-  }
-  const source = session.personalAsset.sourceReference;
-  return (
-    <aside className="asset-practice__reference">
-      <p className="asset-practice__serial">REFERENCE</p>
-      <h2>提示与来源</h2>
-      {currentStep === 'LOGIC_SKELETON_RECALL' ? (
-        <p>H1—H5 均需由你在当前练习区主动展开；最高等级会随本次自报保存。</p>
-      ) : (
-        <p>当前步骤不自动展开额外提示。</p>
-      )}
-      {currentStep === 'READING' && source && (
-        <details>
-          <summary>查看只读来源对照</summary>
-          <p>
-            来源版本 v{source.version}：{source.title}
-          </p>
-          <p>{source.coreFlow}</p>
-          {source.extendedFlow && <p>{source.extendedFlow}</p>}
-        </details>
-      )}
-      {currentStep === 'READING' && !source && <p>当前个人资产没有可显示的已确认来源版本。</p>}
-      {currentStep === 'ANCHOR_TEXT' && (
-        <p>AI 只可能分析你实际提交的文字；本轮不会自动发起 AI 评价。</p>
-      )}
+    <aside
+      className={
+        currentStep === 'NO_HINT_RECALL' || currentStep === 'ANCHOR_TEXT'
+          ? 'asset-practice__reference asset-practice__reference--no-hint'
+          : 'asset-practice__reference'
+      }
+    >
+      <p className="asset-practice__serial">CURRENT GUIDE</p>
+      <h2>本轮提示</h2>
+      <p>
+        看：{current.lookAt}。做：{current.action}。
+      </p>
+      <section className="asset-practice__next-step">
+        <p className="asset-practice__serial">NEXT</p>
+        <h3>{next ? next.label : '本轮完成'}</h3>
+        <p>
+          {next
+            ? `下一步看：${next.lookAt}；做：${next.action}。`
+            : '保存后，本轮五步训练记录会独立保留。'}
+        </p>
+      </section>
     </aside>
   );
 }
@@ -819,8 +712,8 @@ function CompletedPracticeSession({
         </p>
       )}
       <section className="asset-practice__complete-card">
-        <h2>锚点文字已保存</h2>
-        <p>本页没有自动评价口头过程，也没有自动发布或改写任何资产内容。</p>
+        <h2>默写已保存</h2>
+        <p>本页没有自动评价口头过程或默写内容，也没有自动发布或改写任何资产内容。</p>
         <button
           className="asset-practice__primary-action"
           disabled={isRetraining}
@@ -883,7 +776,8 @@ function formFromSession(nextSession: PracticeSession): PracticeForm {
     oralAttemptConfirmed: payload?.oralAttemptConfirmed ?? false,
     completionRating: payload?.completionRating ?? null,
     difficultyRating: payload?.difficultyRating ?? null,
-    highestHintLevel: payload?.highestHintLevel ?? 'H0_NONE',
+    // 历史会话可能保存过旧版 H1—H5；新版不再显示或续写这些提示。
+    highestHintLevel: 'H0_NONE',
     textDraft: payload?.textDraft ?? '',
   };
 }

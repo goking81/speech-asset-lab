@@ -86,3 +86,50 @@
 ## 下一步建议
 
 建议创建 L2：私有资料导入与 AI 整理设计及受控实现。
+
+---
+
+# UX-P05｜五步训练清晰化
+
+完成日期：2026-08-27
+状态：待正式地址发布验证
+
+## 交付结论
+
+已将单资产训练固定为“看全文读顺 → 看词伙说出 → 看结构复述 → 无提示复现 → 默写输出”。训练页只保留当前步骤所必需的材料和动作提示：来源出处、中文翻译/注释与 P05 内的锚点问题均不再显示；问题调用继续由独立 P06—P09 承担。
+
+## 实现内容
+
+- 左侧五步导航改为明确的“看什么｜做什么”，并显示提示从完整资产递减至无提示的过程；
+- 第 1 步仅显示完整个人语流；第 2 步仅显示英文词伙；第 3 步仅显示中文逻辑骨架；第 4 步只保留口头复现说明、计时与自报；
+- 第 5 步改为无提示默写，允许任意非空英语文本，不要求逐字一致，不自动触发 AI 评价；
+- 旧资产若尚未单独保存词伙，第 2 步会从冻结的逻辑节点中读取短表达，绝不退回展示完整原文；
+- 今日训练中的步骤说明同步为新五步名称；历史会话和历史提示等级保持可读取，新的 P05 写入统一保存为 H0。
+
+## 修改范围
+
+- `src/features/asset-practice/asset-practice-page.tsx`
+- `src/server/practice/asset-practice-service.ts`
+- `src/server/practice/asset-practice-service.test.ts`
+- `src/features/planning/today-plan-page.tsx`
+- `src/styles/globals.css`
+- `docs/01_PRD.md`、`docs/02_PAGE_SPEC.md`、`docs/02_PROTOTYPE_SPEC.md`、`docs/04_DECISIONS.md`、`docs/04_PROMPT_COACH_RULES.md`、`docs/05_DATA_MODEL.md`、`docs/09_SOURCE_MANIFEST.md`、`docs/10_CONSISTENCY_AUDIT.md`
+
+## 数据与兼容性
+
+- 无 Prisma migration、无 Supabase 数据写入、无资料文件或训练历史删除；
+- 保留 `ANCHOR_TEXT` 与 `textAnswer` 的历史数据兼容性，但它在新界面中呈现为“默写输出”；
+- 来源可追溯信息继续在资产详情保留，不在训练会话泄露提示。
+
+## 验收
+
+- `pnpm run typecheck`：通过；
+- `pnpm run lint`：通过；
+- `pnpm exec prisma validate --schema prisma/schema.prisma`：通过；
+- `pnpm exec vitest run src/server/practice/asset-practice-service.test.ts --reporter=verbose`：3/3 通过；
+- `pnpm build`：通过；
+- 本地桌面浏览器在 `http://127.0.0.1:3100` 依次检查第 1—5 步：第 2 步只见词伙、第 3 步只见逻辑结构、第 4—5 步无任何英文或结构提示，第 5 步为无提示默写输入框。
+
+## 下一步
+
+提交至 GitHub `main`，由 Cloudflare Git 自动发布至 `https://sa.learnbox.cc`，随后验证正式地址。

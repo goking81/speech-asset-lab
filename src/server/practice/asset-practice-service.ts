@@ -142,20 +142,6 @@ export class AssetPracticeService {
             flowSpans: { orderBy: { sequence: 'asc' } },
           },
         },
-        personalAsset: {
-          include: {
-            sourceAsset: {
-              include: {
-                versions: {
-                  where: { status: 'CONFIRMED' },
-                  orderBy: { version: 'desc' },
-                  take: 1,
-                  select: { title: true, coreFlow: true, extendedFlow: true, version: true },
-                },
-              },
-            },
-          },
-        },
       },
     });
     if (!session) {
@@ -175,20 +161,8 @@ export class AssetPracticeService {
             updatedAt: session.checkpoint.updatedAt,
           }
         : null,
-      personalAsset: {
-        id: session.personalAsset.id,
-        sourceReference: session.personalAsset.sourceAsset.versions[0]
-          ? {
-              title: session.personalAsset.sourceAsset.versions[0].title,
-              coreFlow: session.personalAsset.sourceAsset.versions[0].coreFlow,
-              extendedFlow: session.personalAsset.sourceAsset.versions[0].extendedFlow,
-              version: session.personalAsset.sourceAsset.versions[0].version,
-            }
-          : null,
-      },
       personalAssetVersion: session.personalAssetVersion,
       attempts: session.attempts,
-      anchorQuestion: `在一个你真实遇到的情境中，你会如何调用「${session.personalAssetVersion.triggerName}」这项个人语流？`,
     };
   }
 
@@ -469,16 +443,14 @@ function assertHintLevelForStep(step: P05Step, hintLevel: HintLevel) {
   if (!isHintLevel(hintLevel)) {
     throw new AssetPracticeValidationError('主动提示等级无效。', 'INVALID_INPUT');
   }
-  if (step !== 'LOGIC_SKELETON_RECALL' && hintLevel !== 'H0_NONE') {
-    throw new AssetPracticeValidationError('本步骤不允许记录主动展开提示。', 'INVALID_INPUT');
+  if (hintLevel !== 'H0_NONE') {
+    throw new AssetPracticeValidationError('当前五步训练不允许保存额外提示。', 'INVALID_INPUT');
   }
 }
 
 function assertCheckpointHintForStep(step: P05Step, hintLevel: HintLevel | undefined) {
   if (!hintLevel || hintLevel === 'H0_NONE') return;
-  if (step !== 'LOGIC_SKELETON_RECALL') {
-    throw new AssetPracticeValidationError('当前步骤不允许保存主动展开提示。', 'INVALID_INPUT');
-  }
+  throw new AssetPracticeValidationError('当前五步训练不允许保存额外提示。', 'INVALID_INPUT');
 }
 
 function isHintLevel(value: unknown): value is HintLevel {

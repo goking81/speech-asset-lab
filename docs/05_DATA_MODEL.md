@@ -1,7 +1,7 @@
 # 英语语流资产工具｜数据模型
 
-版本：0.4  
-更新日期：2026-07-25  
+版本：0.5
+更新日期：2026-08-27
 对应参考 Schema：`prisma/schema.prisma`
 
 ## 1. 建模原则
@@ -136,7 +136,7 @@ SourceAsset 是稳定身份；确认后的 SourceAssetVersion 不可变。重构
 
 每一步或子任务的一次独立尝试：
 
-- `stepType`：READING、KEYWORD_RECALL、LOGIC_SKELETON_RECALL、NO_HINT_RECALL、ANCHOR_TEXT、CLOZE_RECALL、CUMULATIVE_RECALL；
+- `stepType`：READING、KEYWORD_RECALL、LOGIC_SKELETON_RECALL、NO_HINT_RECALL、ANCHOR_TEXT、CLOZE_RECALL、CUMULATIVE_RECALL；其中 `ANCHOR_TEXT` 为历史兼容枚举，当前用户语义为“默写输出”；
 - `modality`：READ_ONLY、ORAL_SELF_REPORT、TEXT；
 - `oralAttemptConfirmed`；
 - `completionRating`：COMPLETE/BASIC/PARTIAL/NOT_COMPLETED；
@@ -150,7 +150,7 @@ SourceAsset 是稳定身份；确认后的 SourceAssetVersion 不可变。重构
 
 - 第 2—4 步必须是 ORAL_SELF_REPORT 且不得有音频字段；
 - ORAL_SELF_REPORT 完成时三项自报字段必须满足业务校验；
-- ANCHOR_TEXT 的 `trim(textAnswer)` 必须非空；
+- 默写输出（历史枚举 `ANCHOR_TEXT`）的 `trim(textAnswer)` 必须非空；
 - 重练创建新 Attempt，不覆盖历史。
 
 ## 9. P08 会话与回答

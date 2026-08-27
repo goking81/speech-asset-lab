@@ -60,12 +60,11 @@ test('从本地单资产任务建立并恢复冻结版本的 P05 会话', async 
     status: 'IN_PROGRESS',
     checkpoint: { currentStep: 'READING' },
     personalAssetVersion: { id: fixture.personalVersion.id, status: 'CONFIRMED' },
-    personalAsset: {
-      sourceReference: { extendedFlow: '来源词伙中文注释' },
-    },
   });
   expect(snapshot.personalAssetVersion.expressionUnits).toHaveLength(1);
   expect(snapshot.personalAssetVersion.extendedFlow).toBe('个人词伙中文注释');
+  expect(snapshot).not.toHaveProperty('personalAsset');
+  expect(snapshot).not.toHaveProperty('anchorQuestion');
 });
 
 test('五步主链路保存独立 Attempt、严格执行门禁并恢复文字草稿', async () => {
@@ -106,16 +105,27 @@ test('五步主链路保存独立 Attempt、严格执行门禁并恢复文字草
       oralAttemptConfirmed: true,
       completionRating: 'COMPLETE',
       difficultyRating: 'EASY',
-      highestHintLevel: 'H4_ENGLISH_CHUNKS',
+      highestHintLevel: 'H0_NONE',
     },
   });
+  await expect(
+    service.saveAttempt({
+      assetPracticeSessionId: sessionId,
+      stepType: 'LOGIC_SKELETON_RECALL',
+      oralAttemptConfirmed: true,
+      completionRating: 'COMPLETE',
+      difficultyRating: 'EASY',
+      highestHintLevel: 'H4_ENGLISH_CHUNKS',
+      idempotencyKey: 'f4-skeleton-extra-hint',
+    }),
+  ).rejects.toMatchObject({ code: 'INVALID_INPUT' });
   await service.saveAttempt({
     assetPracticeSessionId: sessionId,
     stepType: 'LOGIC_SKELETON_RECALL',
     oralAttemptConfirmed: true,
     completionRating: 'COMPLETE',
     difficultyRating: 'EASY',
-    highestHintLevel: 'H4_ENGLISH_CHUNKS',
+    highestHintLevel: 'H0_NONE',
     idempotencyKey: 'f4-skeleton-complete',
   });
   await expect(
@@ -179,7 +189,7 @@ test('五步主链路保存独立 Attempt、严格执行门禁并恢复文字草
       expect.objectContaining({
         stepType: 'LOGIC_SKELETON_RECALL',
         modality: 'ORAL_SELF_REPORT',
-        highestHintLevel: 'H4_ENGLISH_CHUNKS',
+        highestHintLevel: 'H0_NONE',
       }),
       expect.objectContaining({
         stepType: 'ANCHOR_TEXT',

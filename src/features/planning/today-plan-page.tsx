@@ -77,7 +77,7 @@ function getPracticeImage(assetName: string | null, index: number) {
   return practiceImages[index % practiceImages.length];
 }
 
-const fiveStepPath = ['熟读理解', '关键词唤醒', '逻辑骨架复现', '无提示复现', '锚点问题调用'];
+const fiveStepPath = ['看全文读顺', '看词伙说出', '看结构复述', '无提示复现', '默写输出'];
 
 export function TodayPlanPage() {
   const router = useRouter();
@@ -223,7 +223,10 @@ export function TodayPlanPage() {
   );
 }
 
-async function readJsonResponse<T extends { error?: string }>(response: Response, fallback: string) {
+async function readJsonResponse<T extends { error?: string }>(
+  response: Response,
+  fallback: string,
+) {
   const body = await response.text();
 
   if (!body.trim()) {

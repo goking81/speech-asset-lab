@@ -3002,6 +3002,21 @@ button:focus-visible {
   font-size: 14px;
 }
 
+.asset-practice__steps li > span:last-child {
+  display: grid;
+  gap: 4px;
+}
+
+.asset-practice__steps li strong {
+  font-size: 14px;
+}
+
+.asset-practice__steps li small {
+  color: var(--color-text-muted);
+  font-size: 11px;
+  line-height: 17px;
+}
+
 .asset-practice__steps li.is-current {
   color: var(--color-primary-active);
   font-weight: 700;
@@ -3016,6 +3031,19 @@ button:focus-visible {
   color: var(--color-text-secondary);
   font-size: 12px;
   line-height: 21px;
+}
+
+.asset-practice__prompt-fade {
+  margin: 22px 0 0 !important;
+  padding-top: 16px;
+  border-top: 1px solid var(--color-border);
+  color: var(--color-primary-active) !important;
+  font-size: 12px !important;
+  line-height: 21px;
+}
+
+.asset-practice__prompt-fade + p {
+  margin-top: 14px !important;
 }
 
 .asset-practice__work {
@@ -3299,6 +3327,27 @@ button:focus-visible {
 
 .asset-practice__reference h2 {
   font-size: 21px;
+}
+
+.asset-practice__next-step {
+  margin-top: 22px;
+  padding-top: 17px;
+  border-top: 1px solid var(--color-border);
+}
+
+.asset-practice__next-step h3 {
+  margin: 8px 0 0;
+  color: var(--color-primary-active);
+  font-family: Georgia, 'Noto Serif SC', 'Songti SC', serif;
+  font-size: 18px;
+  font-weight: 500;
+}
+
+.asset-practice__next-step > p:last-child {
+  margin: 9px 0 0;
+  color: var(--color-text-secondary);
+  font-size: 13px;
+  line-height: 22px;
 }
 
 .asset-practice__reference details {
