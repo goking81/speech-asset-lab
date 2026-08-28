@@ -167,3 +167,5 @@ P05 会话完成后，系统现在会在第 5 步“默写输出”保存的同�
 - `pnpm run prisma:validate`：通过；
 - 已对本次变更文件运行 Prettier 检查并通过；仓库全量 `format:check` 仍因 38 个既有未格式化文件失败，未自动改写无关文件；
 - `pnpm run cloud:build` 已完成 Next.js 编译和类型检查，但在 Windows 的 OpenNext 打包阶段因创建符号链接权限 (`EPERM`) 失败；这是该工具明确提示的 Windows 兼容性限制，不是应用编译失败。Cloudflare 的 Linux Git 构建仍是正式发布验证依据。
+- GitHub `main` 已推送提交 `cdb18b8`；Cloudflare Worker 新版本已于 2026-08-28 04:46:56 UTC 以 100% 流量发布；
+- 正式 `https://sa.learnbox.cc/api/questions` 返回 200 且包含 S2/SINGLE_ASSET_INVOCATION 可调用资产；浏览器实际访问 `https://sa.learnbox.cc/history` 已确认显示“默写输出”、不显示 `ANCHOR_TEXT`。
