@@ -133,3 +133,37 @@
 ## 下一步
 
 已提交 GitHub `main`（`e0c2443`），Cloudflare Git 自动发布至 `https://sa.learnbox.cc`。2026-08-27 已从正式地址的训练页资源验证到“看全文读顺”新文案；建议下一步由真实学习者完成一次第 1—5 步手工体验，重点确认词伙与逻辑骨架的可理解性。
+
+---
+
+# BUG-P05-01｜P05 完成晋级与历史术语修复
+
+完成日期：2026-08-28
+
+## 修复结论
+
+P05 会话完成后，系统现在会在第 5 步“默写输出”保存的同一事务内，把对应的活动个人资产从 S0/S1 升级为 `S2 / SINGLE_ASSET_INVOCATION / CALLABLE`。P06 因而可以把它列为可调用资产。此前已经完整完成的 P05 会话也会在首次读取 P06 前安全补算，无需用户重练。
+
+## 实现内容
+
+- 新增本地确定性晋级服务：只承认五个核心步骤均为 `COMPLETED` 的 P05，会话不依赖 AI、录音、时长推断或隐藏分数；
+- 当前会话完成时同事务写回资格，防止“训练记录已完成、资产状态未更新”的不一致；
+- P06 查询前幂等扫描历史完整会话，只晋级当前活动且仍处于 S0/S1 的资产，不降低 S2—S5 或复活归档资产；
+- P05 完成页和 P06 空状态改为准确说明五步训练与“单资产调用”之间的关系；
+- P13 将存储枚举映射为“看全文读顺、看词伙说出、看结构复述、无提示复现、默写输出”，不再显示 `ANCHOR_TEXT`。
+
+## 数据与兼容性
+
+- 无 Prisma schema 或 migration 变更；
+- 不改写来源资产、个人资产正文、历史 Attempt 或任何训练计数器；
+- 旧会话仅在满足完整五步且其资产仍为活动 S0/S1 时，更新 `UserAssetState` 的阶段和学习状态；
+- 未输出或修改 API Key、资料文件或数据库连接字符串。
+
+## 验收
+
+- `pnpm vitest run src/server/practice/asset-practice-service.test.ts src/server/questions/supported-question-service.test.ts`：2 个文件、8 项测试通过；包含当前会话晋级与历史会话补算；
+- `pnpm run typecheck`：通过；
+- `pnpm run lint`：通过；
+- `pnpm run prisma:validate`：通过；
+- 已对本次变更文件运行 Prettier 检查并通过；仓库全量 `format:check` 仍因 38 个既有未格式化文件失败，未自动改写无关文件；
+- `pnpm run cloud:build` 已完成 Next.js 编译和类型检查，但在 Windows 的 OpenNext 打包阶段因创建符号链接权限 (`EPERM`) 失败；这是该工具明确提示的 Windows 兼容性限制，不是应用编译失败。Cloudflare 的 Linux Git 构建仍是正式发布验证依据。

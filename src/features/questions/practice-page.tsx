@@ -339,8 +339,8 @@ function NoCallableAssetState() {
       <p className="question-practice__serial">ASSET-SUPPORTED PROMPTS</p>
       <h2 id="no-callable-asset-heading">初始资产已导入，尚未达到调用阶段</h2>
       <p>
-        你已有初始学习资产，但它们目前处于熟读阶段。完成熟读、复现和单资产调用后，达到 S2
-        才能用这些已掌握资产做问题训练；系统不会用未掌握资产随机出题。
+        你已有初始学习资产，但尚未完成一轮五步训练。完成“看全文读顺、看词伙说出、看结构复述、无提示复现、默写输出”后，
+        资产会进入 S2 单资产调用阶段，才能用于问题训练；系统不会用未掌握资产随机出题。
       </p>
       <Link className="question-practice__primary-action" href="/lab">
         开始今天训练

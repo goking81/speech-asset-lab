@@ -205,6 +205,15 @@ test('五步主链路保存独立 Attempt、严格执行门禁并恢复文字草
   await expect(
     prisma.assetPracticeAttempt.count({ where: { assetPracticeSessionId: sessionId } }),
   ).resolves.toBe(5);
+  await expect(
+    prisma.userAssetState.findUniqueOrThrow({
+      where: { personalAssetId: fixture.personalAsset.id },
+    }),
+  ).resolves.toMatchObject({
+    internalStage: 'S2',
+    visibleStage: 'SINGLE_ASSET_INVOCATION',
+    learningState: 'CALLABLE',
+  });
 });
 
 test('拼贴任务不能伪装为单资产 P05 会话', async () => {
@@ -277,6 +286,16 @@ async function createPracticeTask(
       endOffset: personalVersion.coreFlow.indexOf(node.text) + node.text.length,
       textHash: `${label}-${node.sequence}`,
     })),
+  });
+  await prisma.userAssetState.create({
+    data: {
+      userId: 'local-user',
+      personalAssetId: personalAsset.id,
+      isActive: true,
+      internalStage: 'S1',
+      visibleStage: 'ASSET_ACCUMULATION',
+      learningState: 'RECALLABLE',
+    },
   });
   const dailyPlan = await prisma.dailyPlan.create({
     data: {

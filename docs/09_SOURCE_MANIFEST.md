@@ -1,7 +1,7 @@
 # 项目来源文件清单
 
-版本：1.1
-更新日期：2026-08-27
+版本：1.2
+更新日期：2026-08-28
 
 ## 1. 唯一生效规则
 
@@ -20,17 +20,17 @@ ChatGPT 项目来源使用不可变版本名；本地仓库使用 `docs/` 中稳
 | 逻辑文档 | ChatGPT 不可变版本 | 本地稳定路径 | 版本 |
 |---|---|---|---:|
 | 项目主页 | `00_PROJECT_HOME_v0.8_20260723.md` | `docs/00_PROJECT_HOME.md` | 0.8 |
-| PRD | `01_PRD_v0.6_20260827.md` | `docs/01_PRD.md` | 0.6 |
-| 页面规格 | `02_PAGE_SPEC_v0.7_20260827.md` | `docs/02_PAGE_SPEC.md` | 0.7 |
+| PRD | `01_PRD_v0.7_20260828.md` | `docs/01_PRD.md` | 0.7 |
+| 页面规格 | `02_PAGE_SPEC_v0.8_20260828.md` | `docs/02_PAGE_SPEC.md` | 0.8 |
 | 原型规格 | `02_PROTOTYPE_SPEC_v0.5_20260827.md` | `docs/02_PROTOTYPE_SPEC.md` | 0.5 |
 | 设计系统 | `03_DESIGN_SYSTEM_v0.3_20260723.md` | `docs/03_DESIGN_SYSTEM.md` | 0.3 |
-| 产品决策 | `04_DECISIONS_v1.1_20260827.md` | `docs/04_DECISIONS.md` | 1.1 |
+| 产品决策 | `04_DECISIONS_v1.2_20260828.md` | `docs/04_DECISIONS.md` | 1.2 |
 | Prompt/Coach | `04_PROMPT_COACH_RULES_v0.4_20260827.md` | `docs/04_PROMPT_COACH_RULES.md` | 0.4 |
-| 数据模型 | `05_DATA_MODEL_v0.5_20260827.md` | `docs/05_DATA_MODEL.md` | 0.5 |
+| 数据模型 | `05_DATA_MODEL_v0.6_20260828.md` | `docs/05_DATA_MODEL.md` | 0.6 |
 | 技术架构 | `06_ARCHITECTURE_v0.4_20260723.md` | `docs/06_ARCHITECTURE.md` | 0.4 |
 | 路线图 | `07_ROADMAP_v0.3_20260723.md` | `docs/07_ROADMAP.md` | 0.3 |
 | 聊天模板 | `08_CHAT_STARTERS_v0.4_20260723.md` | `docs/08_CHAT_STARTERS.md` | 0.4 |
-| 来源清单 | `09_SOURCE_MANIFEST_v1.1_20260827.md` | `docs/09_SOURCE_MANIFEST.md` | 1.1 |
+| 来源清单 | `09_SOURCE_MANIFEST_v1.2_20260828.md` | `docs/09_SOURCE_MANIFEST.md` | 1.2 |
 | Prisma Schema | `schema_v0.4_20260723.prisma` | `prisma/schema.prisma` | 0.4 |
 
 ## 3. 本次增量
@@ -55,6 +55,7 @@ ChatGPT 项目来源使用不可变版本名；本地仓库使用 `docs/` 中稳
 - RC1 已完成 Windows 本地生产启动/停止入口、隔离 E2E 运行目录、训练目标设置、覆盖审计、用户验收、运维和发布门禁材料；真实 Provider、Bundle 批准与激活仍为人工门禁。
 - D-050 新增独立 Landing Page Demo；保持内置资产试用版不开放线上导入的范围边界。
 - D-051 固定 P05 的提示递减路径；训练页移除来源/翻译，末步由锚点问题改为无提示默写，问题调用保留为独立问题训练。
+- D-052 规定完整 P05 在本地将活动资产晋级为 S2/CALLABLE，并在读取 P06 前幂等补算旧完成会话；P13 只显示用户步骤术语。
 
 ## 4. 状态
 

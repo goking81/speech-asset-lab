@@ -8,6 +8,8 @@ import type {
   VisibleStage,
 } from '@prisma/client';
 
+import { reconcileCompletedP05Assets } from '@/server/practice/p05-progression';
+
 type DatabaseClient = PrismaClient | Prisma.TransactionClient;
 
 const callableStages: InternalStage[] = ['S2', 'S3', 'S4', 'S5'];
@@ -330,6 +332,7 @@ export class SupportedQuestionService {
     client: DatabaseClient,
     userId: string,
   ): Promise<CallableAssetVersion[]> {
+    await reconcileCompletedP05Assets(client, userId);
     const assets = await client.personalAsset.findMany({
       where: {
         userId,

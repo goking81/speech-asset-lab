@@ -184,7 +184,7 @@ export function AssetPracticePage({ sessionId }: { sessionId: string }) {
       delete attemptKeys.current[stepType];
       setStatus(
         result.session.status === 'COMPLETED'
-          ? '默写已保存。本页不会自动评价口头过程，也不会改写资产。'
+          ? '默写已保存。该资产已进入单资产调用阶段；本页不会自动评价口头过程，也不会改写资产。'
           : '已保存，继续下一步。',
       );
     } catch (reason: unknown) {
@@ -713,7 +713,9 @@ function CompletedPracticeSession({
       )}
       <section className="asset-practice__complete-card">
         <h2>默写已保存</h2>
-        <p>本页没有自动评价口头过程或默写内容，也没有自动发布或改写任何资产内容。</p>
+        <p>
+          该资产已进入单资产调用阶段，可以在问题训练中作为受支撑资产调用。本页不会自动评价口头过程或默写内容，也不会自动发布或改写任何资产内容。
+        </p>
         <button
           className="asset-practice__primary-action"
           disabled={isRetraining}

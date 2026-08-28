@@ -7,15 +7,11 @@ import {
   type DifficultyRating,
 } from '@/lib/practice-gates';
 
+import { P05_COMPLETION_STEPS, promoteCompletedP05Asset } from './p05-progression';
+
 const LOCAL_USER_ID = 'local-user';
 
-export const P05_STEPS = [
-  'READING',
-  'KEYWORD_RECALL',
-  'LOGIC_SKELETON_RECALL',
-  'NO_HINT_RECALL',
-  'ANCHOR_TEXT',
-] as const;
+export const P05_STEPS = P05_COMPLETION_STEPS;
 
 export type P05Step = (typeof P05_STEPS)[number];
 export type HintLevel =
@@ -260,6 +256,9 @@ export class AssetPracticeService {
             payloadJson: checkpointPayload,
           },
         });
+        if (!nextStep) {
+          await promoteCompletedP05Asset(transaction, userId, session.personalAssetId);
+        }
         return attempt;
       });
     } catch (error) {

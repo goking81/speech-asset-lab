@@ -85,6 +85,43 @@ async function createAsset(label: string, options: { userId?: string; callable?:
   return { personalAsset, version };
 }
 
+async function createCompletedP05Session(asset: Awaited<ReturnType<typeof createAsset>>) {
+  const session = await prisma.assetPracticeSession.create({
+    data: {
+      userId: localUserId,
+      personalAssetId: asset.personalAsset.id,
+      personalAssetVersionId: asset.version.id,
+      currentStep: 'ANCHOR_TEXT',
+      status: 'COMPLETED',
+      completedAt: new Date(),
+    },
+  });
+  const steps = [
+    'READING',
+    'KEYWORD_RECALL',
+    'LOGIC_SKELETON_RECALL',
+    'NO_HINT_RECALL',
+    'ANCHOR_TEXT',
+  ] as const;
+  await prisma.assetPracticeAttempt.createMany({
+    data: steps.map((step) => ({
+      assetPracticeSessionId: session.id,
+      stepType: step,
+      modality:
+        step === 'READING'
+          ? ('READ_ONLY' as const)
+          : step === 'ANCHOR_TEXT'
+            ? ('TEXT' as const)
+            : ('ORAL_SELF_REPORT' as const),
+      status: 'COMPLETED' as const,
+      oralAttemptConfirmed: step !== 'READING' && step !== 'ANCHOR_TEXT',
+      ...(step === 'ANCHOR_TEXT' ? { textAnswer: 'I can now write the asset from memory.' } : {}),
+      idempotencyKey: `legacy-p05-${asset.personalAsset.id}-${step}`,
+      completedAt: new Date(),
+    })),
+  });
+}
+
 test('拒绝未达到可调用状态的个人资产', async () => {
   const asset = await createAsset('未调用', { callable: false });
   const service = new SupportedQuestionService(prisma);
@@ -98,6 +135,31 @@ test('拒绝未达到可调用状态的个人资产', async () => {
     }),
   ).rejects.toMatchObject({
     code: 'ASSET_NOT_CALLABLE',
+  });
+});
+
+test('读取 P06 时会为历史完整 P05 会话补算可调用资格', async () => {
+  const asset = await createAsset('历史完整 P05', { callable: false });
+  await createCompletedP05Session(asset);
+  const service = new SupportedQuestionService(prisma);
+
+  await expect(service.getPracticeOverview(localUserId)).resolves.toMatchObject({
+    callableAssets: expect.arrayContaining([
+      expect.objectContaining({
+        personalAssetVersionId: asset.version.id,
+        internalStage: 'S2',
+        visibleStage: 'SINGLE_ASSET_INVOCATION',
+      }),
+    ]),
+  });
+  await expect(
+    prisma.userAssetState.findUniqueOrThrow({
+      where: { personalAssetId: asset.personalAsset.id },
+    }),
+  ).resolves.toMatchObject({
+    internalStage: 'S2',
+    visibleStage: 'SINGLE_ASSET_INVOCATION',
+    learningState: 'CALLABLE',
   });
 });
 

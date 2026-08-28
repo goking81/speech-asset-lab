@@ -1,7 +1,7 @@
 # 英语语流资产工具｜数据模型
 
-版本：0.5
-更新日期：2026-08-27
+版本：0.6
+更新日期：2026-08-28
 对应参考 Schema：`prisma/schema.prisma`
 
 ## 1. 建模原则
@@ -152,6 +152,8 @@ SourceAsset 是稳定身份；确认后的 SourceAssetVersion 不可变。重构
 - ORAL_SELF_REPORT 完成时三项自报字段必须满足业务校验；
 - 默写输出（历史枚举 `ANCHOR_TEXT`）的 `trim(textAnswer)` 必须非空；
 - 重练创建新 Attempt，不覆盖历史。
+- 当同一 `AssetPracticeSession` 的五个核心步骤均为 `COMPLETED` 时，本地规则将对应活动 `UserAssetState` 从 S0/S1 更新为 `S2 / SINGLE_ASSET_INVOCATION / CALLABLE`；不伪造任何计数器值。
+- 读取 P06 前可按已完成会话和同一五步集合执行幂等补算，仅影响仍处于 S0/S1 的活动状态，保证旧会话兼容。
 
 ## 9. P08 会话与回答
 

@@ -165,12 +165,13 @@ function HistoryAssetPractice({
     <section>
       <h3>P05 单资产训练</h3>
       <p>
-        当前步骤：{practice.currentStep} · 已保存 {practice.attempts.length} 次步骤尝试
+        当前步骤：{p05StepLabel(practice.currentStep)} · 已保存 {practice.attempts.length}{' '}
+        次步骤尝试
       </p>
       {practice.attempts.map((attempt) => (
         <details key={`${attempt.stepType}-${attempt.completedAt ?? attempt.status}`}>
           <summary>
-            {attempt.stepType} · {attempt.status}
+            {p05StepLabel(attempt.stepType)} · {attempt.status}
           </summary>
           <p>
             自评：{attempt.completionRating ?? '未填写'} / {attempt.difficultyRating ?? '未填写'}；
@@ -242,6 +243,17 @@ function HistoryState({ record }: { record: HistoryView['records'][number] }) {
 
 function assetLabel(asset: { triggerName: string; version: number }) {
   return `${asset.triggerName} · v${asset.version}`;
+}
+
+function p05StepLabel(step: string) {
+  const labels: Record<string, string> = {
+    READING: '看全文读顺',
+    KEYWORD_RECALL: '看词伙说出',
+    LOGIC_SKELETON_RECALL: '看结构复述',
+    NO_HINT_RECALL: '无提示复现',
+    ANCHOR_TEXT: '默写输出',
+  };
+  return labels[step] ?? step;
 }
 
 function formatDate(value: string) {
