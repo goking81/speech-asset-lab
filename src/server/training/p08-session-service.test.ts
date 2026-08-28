@@ -173,7 +173,7 @@ test('只记录用户主动请求的 H1—H5 提示，不从 P07 准备材料自
   ).rejects.toMatchObject({ code: 'HINT_INVALID' });
 });
 
-test('R6 为冻结义务创建单题追问，保存追问回答后可解释地结束', async () => {
+test('R6 只创建一个可跳过的补充点，保存后不再强制生成下一轮', async () => {
   const fixture = await createQuestionPlan('受支撑追问');
   const { sessionId } = await service.start({ questionPlanId: fixture.plan.id });
   const first = await service.submitAnswer({
@@ -211,7 +211,7 @@ test('R6 为冻结义务创建单题追问，保存追问回答后可解释地�
 
   const ready = await service.getSnapshot(sessionId);
   expect(ready).toMatchObject({
-    phase: 'AWAITING_FOLLOW_UP',
+    phase: 'REFINEMENT',
     businessVersion: 3,
     followUp: {
       issuedCount: 1,
@@ -233,27 +233,18 @@ test('R6 为冻结义务创建单题追问，保存追问回答后可解释地�
     checkpoint: { type: 'P08_FOLLOW_UP_1_DRAFT', draft: '  可恢复的追问草稿  ' },
   });
 
-  const followUpAnswer = await service.submitFollowUpAnswer({
+  await service.submitFollowUpAnswer({
     trainingSessionId: sessionId,
     expectedBusinessVersion: 3,
     followUpId: ready.followUp.current!.id,
     text: '。',
     idempotencyKey: 'r6-follow-up-answer',
   });
-  await expect(
-    new R6FollowUpService(
-      prisma,
-      new MockAiProvider({
-        kind: 'DRAFT',
-        draft: JSON.stringify({ action: 'END', endReason: 'CONTENT_COMPLETE' }),
-      }),
-    ).requestForAnswer({ trainingSessionId: sessionId, answerId: followUpAnswer.id }),
-  ).resolves.toMatchObject({ status: 'FOLLOW_UP_COMPLETE', endReason: 'CONTENT_COMPLETE' });
 
   await expect(service.getSnapshot(sessionId)).resolves.toMatchObject({
     phase: 'SECOND_ANSWER',
-    businessVersion: 5,
-    followUp: { current: null, issuedCount: 1, endReason: 'CONTENT_COMPLETE' },
+    businessVersion: 4,
+    followUp: { current: null, issuedCount: 1, endReason: 'USER_ANSWERED' },
     checkpoint: { type: 'P08_SECOND_ANSWER_DRAFT', draft: '' },
   });
   await expect(
@@ -356,60 +347,24 @@ test('用户可结束已就绪追问，旧 R6 结果不会再回写会话', asyn
   ).resolves.toMatchObject({ status: 'SUPERSEDED', resultReference: 'R6_USER_ENDED' });
 });
 
-test('R6 最多发出三轮追问，第三轮回答后由本地规则直接结束', async () => {
-  const fixture = await createQuestionPlan('三轮上限');
+test('用户可在保存第一次回答后直接结束本轮，不强制第二次回答', async () => {
+  const fixture = await createQuestionPlan('直接结束');
   const { sessionId } = await service.start({ questionPlanId: fixture.plan.id });
-  const first = await service.submitAnswer({
+  await service.submitAnswer({
     trainingSessionId: sessionId,
     expectedBusinessVersion: 1,
     answerType: 'FIRST_ANSWER',
     text: 'first',
-    idempotencyKey: 'r6-max-first',
+    idempotencyKey: 'p08-complete-first',
   });
-  const obligation = await prisma.questionObligation.findFirstOrThrow({
-    where: { questionPlanId: fixture.plan.id },
-    orderBy: { sequence: 'asc' },
-  });
-  const askService = new R6FollowUpService(
-    prisma,
-    new MockAiProvider({
-      kind: 'DRAFT',
-      draft: JSON.stringify({
-        action: 'ASK',
-        questionText: 'What would you do next?',
-        supportObligationId: obligation.id,
-      }),
-    }),
-  );
-  await askService.requestForAnswer({ trainingSessionId: sessionId, answerId: first.id });
-
-  for (const index of [1, 2] as const) {
-    const snapshot = await service.getSnapshot(sessionId);
-    const answer = await service.submitFollowUpAnswer({
-      trainingSessionId: sessionId,
-      expectedBusinessVersion: snapshot.businessVersion,
-      followUpId: snapshot.followUp.current!.id,
-      text: index === 1 ? 'one' : 'two',
-      idempotencyKey: `r6-max-follow-up-${index}`,
-    });
-    await askService.requestForAnswer({ trainingSessionId: sessionId, answerId: answer.id });
-  }
-  const thirdReady = await service.getSnapshot(sessionId);
-  expect(thirdReady.followUp.current?.issuedIndex).toBe(3);
-  await service.submitFollowUpAnswer({
+  await service.complete({
     trainingSessionId: sessionId,
-    expectedBusinessVersion: thirdReady.businessVersion,
-    followUpId: thirdReady.followUp.current!.id,
-    text: 'three',
-    idempotencyKey: 'r6-max-follow-up-3',
+    expectedBusinessVersion: 2,
   });
   await expect(service.getSnapshot(sessionId)).resolves.toMatchObject({
-    phase: 'SECOND_ANSWER',
-    followUp: { issuedCount: 3, endReason: 'MAX_ROUNDS_REACHED' },
+    phase: 'COMPLETED',
+    answers: { first: { text: 'first' }, second: null },
   });
-  await expect(
-    prisma.followUpItem.count({ where: { trainingSessionId: sessionId } }),
-  ).resolves.toBe(3);
 });
 
 async function createQuestionPlan(label: string) {

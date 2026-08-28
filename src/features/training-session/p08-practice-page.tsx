@@ -1,14 +1,15 @@
 'use client';
 
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
 
+import { readJsonResponse } from '@/lib/api-response';
 import { canSubmitTextAnswer } from '@/lib/practice-gates';
 
-type P08Phase = 'FIRST_ANSWER' | 'AWAITING_FOLLOW_UP' | 'SECOND_ANSWER' | 'COMPLETED';
+type P08Phase =
+  'FIRST_ANSWER' | 'FIRST_ANSWER_SAVED' | 'REFINEMENT' | 'SECOND_ANSWER' | 'COMPLETED';
 type DraftPhase = 'FIRST_ANSWER' | 'FOLLOW_UP_ANSWER' | 'SECOND_ANSWER';
-type HintLevel =
-  'H1_ANGLE' | 'H2_ASSET_NAME' | 'H3_LOGIC_NODES' | 'H4_ENGLISH_CHUNKS' | 'H5_FULL_FLOW';
 
 type TrainingSession = {
   id: string;
@@ -16,7 +17,15 @@ type TrainingSession = {
   status: string;
   phase: P08Phase;
   question: string;
-  assets: Array<{ role: string; triggerName: string; version: number; coreFlow: string }>;
+  questionPlanId: string;
+  assets: Array<{
+    role: string;
+    personalAssetVersionId: string;
+    triggerName: string;
+    version: number;
+    coreFlow: string;
+  }>;
+  candidates: Array<{ id: string; questionText: string }>;
   obligations: Array<{
     id: string;
     sequence: number;
@@ -34,55 +43,40 @@ type TrainingSession = {
       questionText: string;
       support: { obligationDescription: string | null; supportLabels: string[] };
     } | null;
-    issuedCount: number;
     endReason: string | null;
     taskStatus: string | null;
   };
   checkpoint: { type: string; draft: string; createdAt: string } | null;
-  hints: Array<{ id: string; level: HintLevel; context: string; createdAt: string }>;
-};
-
-const hintRank: Record<HintLevel, number> = {
-  H1_ANGLE: 1,
-  H2_ASSET_NAME: 2,
-  H3_LOGIC_NODES: 3,
-  H4_ENGLISH_CHUNKS: 4,
-  H5_FULL_FLOW: 5,
-};
-
-const hintLabels: Record<HintLevel, string> = {
-  H1_ANGLE: '答题角度',
-  H2_ASSET_NAME: '主资产名称',
-  H3_LOGIC_NODES: '中文逻辑骨架',
-  H4_ENGLISH_CHUNKS: '已冻结英文表达',
-  H5_FULL_FLOW: '完整个人语流',
 };
 
 export function P08PracticePage({ sessionId }: { sessionId: string }) {
+  const router = useRouter();
   const [session, setSession] = useState<TrainingSession | null>(null);
   const [draft, setDraft] = useState('');
   const [error, setError] = useState('');
   const [status, setStatus] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [activeHint, setActiveHint] = useState<HintLevel | null>(null);
   const answerKeys = useRef<Partial<Record<DraftPhase, string>>>({});
 
   useEffect(() => {
     let isCurrent = true;
     void fetch(`/api/training/sessions/${encodeURIComponent(sessionId)}`)
       .then(async (response) => {
-        const result = (await response.json()) as { session?: TrainingSession; error?: string };
+        const result = await readJsonResponse<{ session?: TrainingSession; error?: string }>(
+          response,
+          '无法读取问题回答会话。',
+        );
         if (!response.ok || !result.session) {
           throw new Error(result.error ?? '无法读取问题回答会话。');
         }
         if (!isCurrent) return;
         receiveSession(result.session, setSession, setDraft);
-        setActiveHint(null);
       })
       .catch((reason: unknown) => {
-        if (isCurrent)
+        if (isCurrent) {
           setError(reason instanceof Error ? reason.message : '无法读取问题回答会话。');
+        }
       })
       .finally(() => {
         if (isCurrent) setIsLoading(false);
@@ -92,37 +86,11 @@ export function P08PracticePage({ sessionId }: { sessionId: string }) {
     };
   }, [sessionId]);
 
-  const draftPhase = phaseToDraftPhase(session);
-  const currentFollowUpIndex = session?.followUp.current?.issuedIndex;
-
-  // 草稿只写入当前版本；版本已改变的旧页面不会覆盖下一阶段的输入。
-  useEffect(() => {
-    if (!session || !draftPhase || isSubmitting) return;
-    const expectedBusinessVersion = session.businessVersion;
-    const timeout = window.setTimeout(() => {
-      void fetch(`/api/training/sessions/${encodeURIComponent(session.id)}/checkpoint`, {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({
-          expectedBusinessVersion,
-          phase: draftPhase,
-          draft,
-          followUpIndex: currentFollowUpIndex,
-        }),
-      }).then(async (response) => {
-        if (response.ok || response.status === 409) return;
-        const result = (await response.json()) as { error?: string };
-        setStatus(result.error ?? '草稿暂未保存；请保持此页面后重试。');
-      });
-    }, 500);
-    return () => window.clearTimeout(timeout);
-  }, [currentFollowUpIndex, draft, draftPhase, isSubmitting, session]);
-
-  async function submitAnswer(answerType: DraftPhase) {
+  async function saveAnswer(answerType: 'FIRST_ANSWER' | 'SECOND_ANSWER') {
     if (!session) return;
     setIsSubmitting(true);
     setError('');
-    setStatus('正在本地保存回答。');
+    setStatus('正在保存回答。');
     const idempotencyKey = answerKeys.current[answerType] ?? createIdempotencyKey();
     answerKeys.current[answerType] = idempotencyKey;
     try {
@@ -139,15 +107,17 @@ export function P08PracticePage({ sessionId }: { sessionId: string }) {
           }),
         },
       );
-      const result = (await response.json()) as { session?: TrainingSession; error?: string };
+      const result = await readJsonResponse<{ session?: TrainingSession; error?: string }>(
+        response,
+        '无法保存回答。',
+      );
       if (!response.ok || !result.session) throw new Error(result.error ?? '无法保存回答。');
       receiveSession(result.session, setSession, setDraft);
       delete answerKeys.current[answerType];
-      setActiveHint(null);
       setStatus(
         answerType === 'FIRST_ANSWER'
-          ? '第一次回答已保存。尚未展示任何正式 AI 评价。'
-          : '第二次回答已保存。当前会话等待后续复盘能力接入。',
+          ? '回答已保存。保存不会等待 AI，你现在可以决定是否继续练习。'
+          : '重新组织后的回答已保存；两次回答会保留，便于之后对照。',
       );
     } catch (reason: unknown) {
       setError(reason instanceof Error ? reason.message : '无法保存回答。');
@@ -157,40 +127,50 @@ export function P08PracticePage({ sessionId }: { sessionId: string }) {
     }
   }
 
-  async function advanceToSecondAnswer() {
+  async function requestRefinement() {
     if (!session) return;
     setIsSubmitting(true);
     setError('');
-    setStatus('正在建立空白的第二次回答。');
+    setStatus('正在准备一个可跳过的补充建议。');
     try {
       const response = await fetch(
-        `/api/training/sessions/${encodeURIComponent(session.id)}/advance`,
+        `/api/training/sessions/${encodeURIComponent(session.id)}/refinement`,
         {
           method: 'POST',
           headers: { 'content-type': 'application/json' },
           body: JSON.stringify({ expectedBusinessVersion: session.businessVersion }),
         },
       );
-      const result = (await response.json()) as { session?: TrainingSession; error?: string };
+      const result = await readJsonResponse<{ session?: TrainingSession; error?: string }>(
+        response,
+        '无法准备补充建议。',
+      );
       if (!response.ok || !result.session) {
-        throw new Error(result.error ?? '无法进入第二次回答。');
+        throw new Error(result.error ?? '无法准备补充建议。');
       }
       receiveSession(result.session, setSession, setDraft);
-      setActiveHint(null);
-      setStatus('第二次回答已准备好，输入框保持空白。');
+      setStatus(
+        result.session.phase === 'REFINEMENT'
+          ? '已准备一个具体补充点；你可以回答它，也可以直接跳过。'
+          : '没有必要补充的单一关键点；你仍可重新组织一次，或结束本轮。',
+      );
     } catch (reason: unknown) {
-      setError(reason instanceof Error ? reason.message : '无法进入第二次回答。');
+      setError(
+        reason instanceof Error
+          ? reason.message
+          : '暂时无法准备补充建议；你仍可直接结束或重新组织回答。',
+      );
       setStatus('');
     } finally {
       setIsSubmitting(false);
     }
   }
 
-  async function submitFollowUpAnswer() {
+  async function saveRefinement() {
     if (!session?.followUp.current) return;
     setIsSubmitting(true);
     setError('');
-    setStatus('正在本地保存追问回答。');
+    setStatus('正在保存补充内容。');
     const idempotencyKey = answerKeys.current.FOLLOW_UP_ANSWER ?? createIdempotencyKey();
     answerKeys.current.FOLLOW_UP_ANSWER = idempotencyKey;
     try {
@@ -207,52 +187,92 @@ export function P08PracticePage({ sessionId }: { sessionId: string }) {
           }),
         },
       );
-      const result = (await response.json()) as { session?: TrainingSession; error?: string };
-      if (!response.ok || !result.session) throw new Error(result.error ?? '无法保存追问回答。');
+      const result = await readJsonResponse<{ session?: TrainingSession; error?: string }>(
+        response,
+        '无法保存补充内容。',
+      );
+      if (!response.ok || !result.session) throw new Error(result.error ?? '无法保存补充内容。');
       receiveSession(result.session, setSession, setDraft);
       delete answerKeys.current.FOLLOW_UP_ANSWER;
-      setActiveHint(null);
-      setStatus(
-        result.session.phase === 'SECOND_ANSWER'
-          ? '追问已结束，第二次回答已准备好且输入框保持空白。'
-          : '追问回答已保存，正在准备下一轮受支撑追问。',
-      );
+      setStatus('补充内容已保存。现在可按需重新组织原题，也可以结束本轮。');
     } catch (reason: unknown) {
-      setError(reason instanceof Error ? reason.message : '无法保存追问回答。');
+      setError(reason instanceof Error ? reason.message : '无法保存补充内容。');
       setStatus('');
     } finally {
       setIsSubmitting(false);
     }
   }
 
-  async function requestHint(level: HintLevel) {
-    if (!session || !draftPhase) return;
+  async function startReanswer() {
+    if (!session) return;
     setIsSubmitting(true);
     setError('');
+    setStatus('正在打开空白回答框。');
     try {
       const response = await fetch(
-        `/api/training/sessions/${encodeURIComponent(session.id)}/hints`,
+        `/api/training/sessions/${encodeURIComponent(session.id)}/advance`,
         {
           method: 'POST',
           headers: { 'content-type': 'application/json' },
-          body: JSON.stringify({
-            expectedBusinessVersion: session.businessVersion,
-            phase: draftPhase,
-            level,
-            followUpIndex: currentFollowUpIndex,
-          }),
+          body: JSON.stringify({ expectedBusinessVersion: session.businessVersion }),
         },
       );
-      const result = (await response.json()) as { session?: TrainingSession; error?: string };
-      if (!response.ok || !result.session) throw new Error(result.error ?? '无法记录主动提示。');
-      setSession(result.session);
-      setActiveHint(level);
-      setStatus(`已记录 H${hintRank[level]} 主动提示。`);
+      const result = await readJsonResponse<{ session?: TrainingSession; error?: string }>(
+        response,
+        '无法打开重新回答。',
+      );
+      if (!response.ok || !result.session) throw new Error(result.error ?? '无法打开重新回答。');
+      receiveSession(result.session, setSession, setDraft);
+      setStatus('这是一个新的空白回答框；第一次回答仍被完整保留。');
     } catch (reason: unknown) {
-      setError(reason instanceof Error ? reason.message : '无法记录主动提示。');
+      setError(reason instanceof Error ? reason.message : '无法打开重新回答。');
+      setStatus('');
     } finally {
       setIsSubmitting(false);
     }
+  }
+
+  async function finishRound() {
+    if (!session) return;
+    setIsSubmitting(true);
+    setError('');
+    setStatus('正在结束本轮。');
+    try {
+      const response = await fetch(
+        `/api/training/sessions/${encodeURIComponent(session.id)}/complete`,
+        {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ expectedBusinessVersion: session.businessVersion }),
+        },
+      );
+      const result = await readJsonResponse<{ session?: TrainingSession; error?: string }>(
+        response,
+        '无法结束本轮。',
+      );
+      if (!response.ok || !result.session) throw new Error(result.error ?? '无法结束本轮。');
+      receiveSession(result.session, setSession, setDraft);
+      setStatus('本轮已结束，原回答已保留。');
+    } catch (reason: unknown) {
+      setError(reason instanceof Error ? reason.message : '无法结束本轮。');
+      setStatus('');
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
+  function chooseCandidate(planId: string) {
+    if (!session || planId === session.questionPlanId || session.phase !== 'FIRST_ANSWER') return;
+    router.push(`/practice/new?planId=${encodeURIComponent(planId)}`);
+  }
+
+  function chooseRandomCandidate() {
+    if (!session || session.phase !== 'FIRST_ANSWER') return;
+    const alternatives = session.candidates.filter(
+      (candidate) => candidate.id !== session.questionPlanId,
+    );
+    const selected = alternatives[Math.floor(Math.random() * alternatives.length)];
+    if (selected) chooseCandidate(selected.id);
   }
 
   if (isLoading) return <P08LoadingState />;
@@ -275,16 +295,14 @@ export function P08PracticePage({ sessionId }: { sessionId: string }) {
   });
 
   return (
-    <main className="page page--with-back-link training-session">
+    <main className="page page--with-back-link training-session training-session--focused">
       <Link className="page-back-link" href="/practice">
         ← 返回问题训练
       </Link>
       <header className="page-heading">
         <p className="page-heading__eyebrow">P08 / QUESTION PRACTICE</p>
-        <h1>问题回答</h1>
-        <p>
-          每次提交都会先保存在本地。当前不会展示第一次回答的正式 AI 评价，也不会自动改写你的文字。
-        </p>
+        <h1>围绕一个问题，调用一条资产</h1>
+        <p>每轮只面对一道题。问题可换，调用的主资产保持锁定；所有“补充”和“重新回答”都由你决定。</p>
       </header>
 
       {error && (
@@ -298,107 +316,97 @@ export function P08PracticePage({ sessionId }: { sessionId: string }) {
         </p>
       )}
 
-      <div className="training-session__layout">
-        <SessionSteps phase={session.phase} />
+      <div className="training-session__focused-layout">
         <section className="training-session__work" aria-labelledby="p08-current-heading">
-          <QuestionPrompt assets={session.assets} question={session.question} />
+          <QuestionPrompt
+            assets={session.assets}
+            candidateCount={session.candidates.length}
+            question={session.question}
+          />
           {session.phase === 'FIRST_ANSWER' && (
             <AnswerEditor
               canSubmit={canSubmit}
               draft={draft}
-              heading="第一次回答"
+              heading="先自然回答一次"
               isSubmitting={isSubmitting}
               onChange={setDraft}
-              onSubmit={() => void submitAnswer('FIRST_ANSWER')}
-              submitLabel="保存第一次回答"
+              onSubmit={() => void saveAnswer('FIRST_ANSWER')}
+              submitLabel="保存回答"
+              supportingText="保存只写入本地，不等待 AI；通常会很快完成。"
             />
           )}
-          {session.phase === 'AWAITING_FOLLOW_UP' && (
-            <AwaitingFollowUp
+          {session.phase === 'FIRST_ANSWER_SAVED' && (
+            <SavedAnswerActions
+              firstAnswer={session.answers.first?.text ?? ''}
+              isSubmitting={isSubmitting}
+              onComplete={() => void finishRound()}
+              onReanswer={() => void startReanswer()}
+              onRefine={() => void requestRefinement()}
+            />
+          )}
+          {session.phase === 'REFINEMENT' && (
+            <RefinementEditor
               canSubmit={canSubmit}
               currentFollowUp={session.followUp.current}
               draft={draft}
-              firstAnswer={session.answers.first?.text ?? ''}
               isSubmitting={isSubmitting}
               onChange={setDraft}
-              onAdvance={() => void advanceToSecondAnswer()}
-              onSubmit={() => void submitFollowUpAnswer()}
-              endReason={session.followUp.endReason}
-              taskStatus={session.followUp.taskStatus}
+              onComplete={() => void finishRound()}
+              onSubmit={() => void saveRefinement()}
             />
           )}
           {session.phase === 'SECOND_ANSWER' && (
             <AnswerEditor
               canSubmit={canSubmit}
               draft={draft}
-              heading="第二次回答"
+              heading="重新回答原题（可选）"
               isSubmitting={isSubmitting}
               onChange={setDraft}
-              onSubmit={() => void submitAnswer('SECOND_ANSWER')}
-              submitLabel="保存第二次回答"
+              onSubmit={() => void saveAnswer('SECOND_ANSWER')}
+              secondaryAction={{ label: '本轮到此为止', onClick: () => void finishRound() }}
+              submitLabel="保存重新组织后的回答"
+              supportingText="这是一个新的空白回答框；第一次回答不会被覆盖。若不想重答，可直接结束本轮。"
             />
           )}
-          {session.phase === 'COMPLETED' && <CompletedAnswers session={session} />}
+          {session.phase === 'COMPLETED' && <CompletedRound session={session} />}
         </section>
-        <HintPanel
-          activeHint={activeHint}
-          assets={session.assets}
-          currentPhase={currentDraftPhase}
-          currentFollowUpIndex={currentFollowUpIndex}
-          hints={session.hints}
-          isSubmitting={isSubmitting}
-          obligations={session.obligations}
-          onRequest={(level) => void requestHint(level)}
+        <CandidateDeck
+          candidates={session.candidates}
+          currentPlanId={session.questionPlanId}
+          disabled={session.phase !== 'FIRST_ANSWER' || isSubmitting}
+          onRandomize={chooseRandomCandidate}
+          onSelect={chooseCandidate}
         />
       </div>
     </main>
   );
 }
 
-function SessionSteps({ phase }: { phase: P08Phase }) {
-  const steps: Array<{ id: P08Phase; label: string }> = [
-    { id: 'FIRST_ANSWER', label: '第一次回答' },
-    { id: 'AWAITING_FOLLOW_UP', label: '受支撑追问' },
-    { id: 'SECOND_ANSWER', label: '第二次回答' },
-    { id: 'COMPLETED', label: '等待复盘' },
-  ];
-  const currentIndex = steps.findIndex((step) => step.id === phase);
-  return (
-    <aside className="training-session__steps" aria-label="问题回答进度">
-      <p className="training-session__serial">P08 PATH</p>
-      <ol>
-        {steps.map((step, index) => (
-          <li
-            className={
-              index < currentIndex ? 'is-complete' : index === currentIndex ? 'is-current' : ''
-            }
-            key={step.id}
-          >
-            <span aria-hidden="true">{index < currentIndex ? '✓' : '○'}</span>
-            <span aria-current={step.id === phase ? 'step' : undefined}>{step.label}</span>
-          </li>
-        ))}
-      </ol>
-      <p>追问只会使用当前冻结问题计划中的支撑；任一轮失败或结束后都可进入第二次回答。</p>
-    </aside>
-  );
-}
-
 function QuestionPrompt({
   question,
   assets,
+  candidateCount,
 }: {
   question: string;
   assets: TrainingSession['assets'];
+  candidateCount: number;
 }) {
   const primary = assets.find((asset) => asset.role === 'PRIMARY');
   return (
     <section className="training-session__question">
-      <p className="training-session__serial">SUPPORTED QUESTION</p>
-      <h2>{question}</h2>
-      <p>
-        主资产：{primary ? `${primary.triggerName} · v${primary.version}` : '已冻结的个人资产版本'}
-      </p>
+      <p className="training-session__serial">本轮问题 / 候选池 {candidateCount || 1}</p>
+      <h2 id="p08-current-heading">{question}</h2>
+      <div className="training-session__asset-strip">
+        <span>本轮调用资产</span>
+        <strong>
+          {primary ? `${primary.triggerName} · v${primary.version}` : '已冻结个人资产版本'}
+        </strong>
+      </div>
+      <ol className="training-session__logic-chips" aria-label="本轮回答结构">
+        <li>先说观点</li>
+        <li>解释原因</li>
+        <li>落到行动</li>
+      </ol>
     </section>
   );
 }
@@ -409,249 +417,248 @@ function AnswerEditor({
   isSubmitting,
   canSubmit,
   submitLabel,
+  supportingText,
   onChange,
   onSubmit,
+  secondaryAction,
 }: {
   heading: string;
   draft: string;
   isSubmitting: boolean;
   canSubmit: boolean;
   submitLabel: string;
+  supportingText: string;
   onChange: (value: string) => void;
   onSubmit: () => void;
+  secondaryAction?: { label: string; onClick: () => void };
 }) {
   return (
     <section className="training-session__editor">
       <p className="training-session__serial">TEXT RESPONSE</p>
-      <h2 id="p08-current-heading">{heading}</h2>
-      <p>只保存你在本框提交的实际文字。去除首尾空白后非空即可，不要求词数或句数。</p>
+      <h2>{heading}</h2>
+      <p>按自己的方式完整表达即可。不要求词数或句数，也不会自动改写你的文字。</p>
       <label htmlFor="p08-answer">本次回答</label>
       <textarea
         id="p08-answer"
         onChange={(event) => onChange(event.target.value)}
         placeholder="输入你的回答。"
-        rows={10}
+        rows={9}
         value={draft}
       />
-      <p className="training-session__input-boundary">
-        保存后不会自动覆盖，也不会在本页展示正式 AI 评价。
-      </p>
+      <div className="training-session__editor-actions">
+        <button
+          className="training-session__primary-action"
+          disabled={!canSubmit}
+          onClick={onSubmit}
+          type="button"
+        >
+          {isSubmitting ? '正在保存' : submitLabel}
+        </button>
+        {secondaryAction && (
+          <button
+            className="training-session__secondary-action"
+            disabled={isSubmitting}
+            onClick={secondaryAction.onClick}
+            type="button"
+          >
+            {secondaryAction.label}
+          </button>
+        )}
+      </div>
+      <p className="training-session__input-boundary">{supportingText}</p>
+    </section>
+  );
+}
+
+function SavedAnswerActions({
+  firstAnswer,
+  isSubmitting,
+  onRefine,
+  onReanswer,
+  onComplete,
+}: {
+  firstAnswer: string;
+  isSubmitting: boolean;
+  onRefine: () => void;
+  onReanswer: () => void;
+  onComplete: () => void;
+}) {
+  return (
+    <section className="training-session__next-actions">
+      <p className="training-session__serial">ANSWER SAVED</p>
+      <h2>回答已保存，下一步由你决定</h2>
+      <p>没有固定追问轮次，也不要求再回答一次。你的原回答会保持不变。</p>
+      <details>
+        <summary>回看已保存的回答</summary>
+        <p>{firstAnswer}</p>
+      </details>
+      <div className="training-session__choice-grid">
+        <article>
+          <h3>补一个关键点（可选）</h3>
+          <p>AI 只会提出一个具体、可跳过的补充点；不会重复原题或给你的回答打分。</p>
+          <button
+            className="training-session__primary-action"
+            disabled={isSubmitting}
+            onClick={onRefine}
+            type="button"
+          >
+            {isSubmitting ? '正在准备' : '请求一个补充建议'}
+          </button>
+        </article>
+        <article>
+          <h3>重新组织一次（可选）</h3>
+          <p>打开新的空白回答框来重答原题，第一次回答仍会被完整保留。</p>
+          <button
+            className="training-session__secondary-action"
+            disabled={isSubmitting}
+            onClick={onReanswer}
+            type="button"
+          >
+            重新回答原题
+          </button>
+        </article>
+      </div>
       <button
-        className="training-session__primary-action"
-        disabled={!canSubmit}
-        onClick={onSubmit}
+        className="training-session__finish-action"
+        disabled={isSubmitting}
+        onClick={onComplete}
         type="button"
       >
-        {isSubmitting ? '正在保存' : submitLabel}
+        本轮到此为止
       </button>
     </section>
   );
 }
 
-function AwaitingFollowUp({
+function RefinementEditor({
   currentFollowUp,
   draft,
   canSubmit,
-  firstAnswer,
   isSubmitting,
   onChange,
-  onAdvance,
   onSubmit,
-  endReason,
-  taskStatus,
+  onComplete,
 }: {
   currentFollowUp: TrainingSession['followUp']['current'];
   draft: string;
   canSubmit: boolean;
-  firstAnswer: string;
   isSubmitting: boolean;
   onChange: (value: string) => void;
-  onAdvance: () => void;
   onSubmit: () => void;
-  endReason: string | null;
-  taskStatus: string | null;
+  onComplete: () => void;
 }) {
-  if (currentFollowUp) {
+  if (!currentFollowUp) {
     return (
-      <>
-        <section className="training-session__transition">
-          <p className="training-session__serial">
-            SUPPORTED FOLLOW-UP {currentFollowUp.issuedIndex}/3
-          </p>
-          <h2 id="p08-current-heading">受支撑追问</h2>
-          <p>{currentFollowUp.questionText}</p>
-          <details>
-            <summary>查看本题的支撑边界</summary>
-            <p>{currentFollowUp.support.obligationDescription ?? '已冻结问题义务。'}</p>
-            {currentFollowUp.support.supportLabels.length > 0 && (
-              <p>{currentFollowUp.support.supportLabels.join(' / ')}</p>
-            )}
-          </details>
-          <p className="training-session__boundary">
-            这是一条受冻结支撑约束的追问，不是第一次回答的正式 AI 评价。
-          </p>
-        </section>
-        <AnswerEditor
-          canSubmit={canSubmit}
-          draft={draft}
-          heading={`追问回答 ${currentFollowUp.issuedIndex}/3`}
-          isSubmitting={isSubmitting}
-          onChange={onChange}
-          onSubmit={onSubmit}
-          submitLabel="保存追问回答"
-        />
+      <section className="training-session__next-actions">
+        <h2>暂时没有补充建议</h2>
+        <p>原回答已安全保存。你可以重新组织一次，或直接结束本轮。</p>
         <button
-          className="training-session__secondary-action"
+          className="training-session__finish-action"
           disabled={isSubmitting}
-          onClick={onAdvance}
+          onClick={onComplete}
           type="button"
         >
-          {isSubmitting ? '正在准备' : '结束追问并开始第二次回答'}
+          本轮到此为止
         </button>
-      </>
+      </section>
     );
   }
   return (
-    <section className="training-session__transition">
-      <p className="training-session__serial">FIRST ANSWER SAVED</p>
-      <h2 id="p08-current-heading">第一次回答已保存</h2>
-      <p>
-        {taskStatus === 'RUNNING' || taskStatus === 'QUEUED'
-          ? '正在检查是否存在安全、受支撑的下一题。你也可以直接结束追问。'
-          : `当前没有可继续的受支撑追问${endReason ? `（${endReason}）` : ''}。你可以开始第二次回答。`}
-      </p>
-      <details>
-        <summary>回看已保存的第一次回答</summary>
-        <p>{firstAnswer}</p>
-      </details>
-      <p className="training-session__boundary">这里不展示第一次回答的正式 AI 评价。</p>
-      <button
-        className="training-session__primary-action"
-        disabled={isSubmitting}
-        onClick={onAdvance}
-        type="button"
-      >
-        {isSubmitting ? '正在准备' : '结束追问并开始第二次回答'}
-      </button>
-    </section>
+    <>
+      <section className="training-session__refinement">
+        <p className="training-session__serial">OPTIONAL REFINEMENT</p>
+        <h2>补一个具体点（可选）</h2>
+        <p className="training-session__refinement-purpose">
+          建议补：{currentFollowUp.support.obligationDescription ?? '一项未充分展开的回答内容'}
+        </p>
+        <p className="training-session__refinement-question">{currentFollowUp.questionText}</p>
+        <p>这不是对原回答的评分，也不是要求你重复回答。若现在不想补充，直接跳过即可。</p>
+      </section>
+      <AnswerEditor
+        canSubmit={canSubmit}
+        draft={draft}
+        heading="补充这个点"
+        isSubmitting={isSubmitting}
+        onChange={onChange}
+        onSubmit={onSubmit}
+        secondaryAction={{ label: '跳过，保持原回答', onClick: onComplete }}
+        submitLabel="保存补充内容"
+        supportingText="保存后你可选择重新回答原题，也可以结束本轮。"
+      />
+    </>
   );
 }
 
-function CompletedAnswers({ session }: { session: TrainingSession }) {
+function CompletedRound({ session }: { session: TrainingSession }) {
   return (
     <section className="training-session__completed">
-      <p className="training-session__serial">TWO ANSWERS SAVED</p>
-      <h2 id="p08-current-heading">两次回答已独立保存</h2>
-      <p>两次回答已独立保存。复盘只展示本地比较事实和可用草稿，不会改写原回答。</p>
-      <details>
-        <summary>查看第一次回答</summary>
-        <p>{session.answers.first?.text ?? '未保存'}</p>
-      </details>
-      <details>
-        <summary>查看第二次回答</summary>
-        <p>{session.answers.second?.text ?? '未保存'}</p>
-      </details>
-      <Link className="training-session__back" href={`/practice/${session.id}/review`}>
-        进入复盘
+      <p className="training-session__serial">ROUND COMPLETE</p>
+      <h2>本轮已完成</h2>
+      <p>
+        {session.answers.second
+          ? '两次回答都已保留，可在训练记录中对照。'
+          : '你选择保留第一次回答结束本轮；以后需要时仍可用其他候选问题继续练习。'}
+      </p>
+      <Link className="training-session__back" href="/history">
+        查看训练记录
       </Link>
     </section>
   );
 }
 
-function HintPanel({
-  assets,
-  obligations,
-  hints,
-  currentPhase,
-  currentFollowUpIndex,
-  activeHint,
-  isSubmitting,
-  onRequest,
+function CandidateDeck({
+  candidates,
+  currentPlanId,
+  disabled,
+  onRandomize,
+  onSelect,
 }: {
-  assets: TrainingSession['assets'];
-  obligations: TrainingSession['obligations'];
-  hints: TrainingSession['hints'];
-  currentPhase: DraftPhase | null;
-  currentFollowUpIndex: number | undefined;
-  activeHint: HintLevel | null;
-  isSubmitting: boolean;
-  onRequest: (level: HintLevel) => void;
+  candidates: TrainingSession['candidates'];
+  currentPlanId: string;
+  disabled: boolean;
+  onRandomize: () => void;
+  onSelect: (planId: string) => void;
 }) {
-  const primary = assets.find((asset) => asset.role === 'PRIMARY');
-  const context =
-    currentPhase === 'FOLLOW_UP_ANSWER'
-      ? `P08_FOLLOW_UP_ANSWER_${currentFollowUpIndex}`
-      : currentPhase
-        ? `P08_${currentPhase}`
-        : '';
-  const highestHint = hints
-    .filter((hint) => hint.context === context)
-    .reduce<HintLevel | null>(
-      (highest, hint) =>
-        !highest || hintRank[hint.level] > hintRank[highest] ? hint.level : highest,
-      null,
-    );
-  const content = activeHint ? hintContent(activeHint, primary, obligations) : null;
   return (
-    <aside className="training-session__hints" aria-labelledby="p08-hints-heading">
-      <p className="training-session__serial">ACTIVE HINTS</p>
-      <h2 id="p08-hints-heading">主动提示</h2>
-      {currentPhase ? (
-        <>
-          <p>
-            当前最高主动提示：H{highestHint ? hintRank[highestHint] : 0}。P07
-            准备页中展开的材料不会自动记为提示。
-          </p>
-          <div className="training-session__hint-actions">
-            {(Object.keys(hintLabels) as HintLevel[]).map((level) => (
+    <aside className="training-session__candidates" aria-labelledby="candidate-questions-heading">
+      <p className="training-session__serial">CANDIDATE QUESTIONS</p>
+      <h2 id="candidate-questions-heading">候选问题</h2>
+      <p>每张卡都是一道独立问题。首次回答前可以换题，主资产不变。</p>
+      {candidates.length > 1 && (
+        <button
+          className="training-session__randomize-question"
+          disabled={disabled}
+          onClick={onRandomize}
+          type="button"
+        >
+          换一个问题
+        </button>
+      )}
+      <ol>
+        {candidates.map((candidate) => {
+          const isCurrent = candidate.id === currentPlanId;
+          return (
+            <li key={candidate.id}>
               <button
-                disabled={isSubmitting}
-                key={level}
-                onClick={() => onRequest(level)}
+                aria-current={isCurrent ? 'true' : undefined}
+                className={isCurrent ? 'is-current' : ''}
+                disabled={disabled || isCurrent}
+                onClick={() => onSelect(candidate.id)}
                 type="button"
               >
-                使用 H{hintRank[level]} {hintLabels[level]}
+                {candidate.questionText}
               </button>
-            ))}
-          </div>
-          {activeHint && content && (
-            <div className="training-session__hint-content">
-              <strong>
-                H{hintRank[activeHint]} {hintLabels[activeHint]}
-              </strong>
-              <p>{content}</p>
-            </div>
-          )}
-        </>
-      ) : (
-        <p>当前阶段不提供新的提示材料；已保存的回答和正式评价保持分离。</p>
+            </li>
+          );
+        })}
+      </ol>
+      {!disabled && candidates.length > 1 && (
+        <p className="training-session__candidate-note">
+          选择另一题后会回到准备页，不会覆盖当前题。
+        </p>
       )}
     </aside>
   );
-}
-
-function hintContent(
-  level: HintLevel,
-  primary: TrainingSession['assets'][number] | undefined,
-  obligations: TrainingSession['obligations'],
-) {
-  switch (level) {
-    case 'H1_ANGLE':
-      return '先回到题面中的真实情境，再用已冻结资产组织自己的回答。';
-    case 'H2_ASSET_NAME':
-      return primary?.triggerName ?? '当前问题的已冻结主资产。';
-    case 'H3_LOGIC_NODES':
-      return obligations.map((obligation) => obligation.description).join(' → ');
-    case 'H4_ENGLISH_CHUNKS':
-      return (
-        obligations
-          .map((obligation) => obligation.englishExpression)
-          .filter((expression): expression is string => Boolean(expression))
-          .join(' / ') || '当前问题没有额外可展示的已冻结英文表达。'
-      );
-    case 'H5_FULL_FLOW':
-      return primary?.coreFlow ?? '当前问题没有可展示的完整个人语流。';
-  }
 }
 
 function receiveSession(
@@ -675,9 +682,7 @@ function receiveSession(
 function phaseToDraftPhase(session: TrainingSession | null | undefined): DraftPhase | null {
   if (!session) return null;
   if (session.phase === 'FIRST_ANSWER' || session.phase === 'SECOND_ANSWER') return session.phase;
-  if (session.phase === 'AWAITING_FOLLOW_UP' && session.followUp.current) {
-    return 'FOLLOW_UP_ANSWER';
-  }
+  if (session.phase === 'REFINEMENT' && session.followUp.current) return 'FOLLOW_UP_ANSWER';
   return null;
 }
 

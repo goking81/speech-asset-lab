@@ -1,12 +1,6 @@
 import { NextResponse } from 'next/server';
 
-import { DeepSeekAiProvider, UnconfiguredAiProvider } from '@/ai/provider';
-import { syncEnvironmentProviderConfig } from '@/server/ai/provider-config-service';
 import { createDatabaseClient } from '@/server/db/client';
-import { R6FollowUpService } from '@/server/training/r6-follow-up-service';
-import { R7AUsageService } from '@/server/training/r7a-usage-service';
-import { R7BEvaluationService } from '@/server/training/r7b-evaluation-service';
-import { R7CReviewService } from '@/server/training/r7c-review-service';
 import {
   P08SessionService,
   P08SessionValidationError,
@@ -35,33 +29,8 @@ export async function POST(request: Request, context: { params: Promise<{ sessio
       text: typeof body.text === 'string' ? body.text : '',
       idempotencyKey: typeof body.idempotencyKey === 'string' ? body.idempotencyKey : '',
     });
-    if (answer.answerType === 'FIRST_ANSWER' || answer.answerType === 'SECOND_ANSWER') {
-      await syncEnvironmentProviderConfig(prisma);
-      const configured = await prisma.aiProviderConfig.findFirst({
-        where: { userId: 'local-user', isEnabled: true },
-        select: { id: true },
-      });
-      const provider = configured ? new DeepSeekAiProvider() : new UnconfiguredAiProvider();
-      await new R7AUsageService(prisma, provider).requestForAnswer({
-        trainingSessionId: sessionId,
-        answerId: answer.id,
-      });
-      await new R7BEvaluationService(prisma, provider).requestForAnswer({
-        trainingSessionId: sessionId,
-        answerId: answer.id,
-      });
-      if (answer.answerType === 'SECOND_ANSWER') {
-        await new R7CReviewService(prisma, provider).requestForSession({
-          trainingSessionId: sessionId,
-        });
-      }
-      if (answer.answerType === 'FIRST_ANSWER') {
-        await new R6FollowUpService(prisma, provider).requestForAnswer({
-          trainingSessionId: sessionId,
-          answerId: answer.id,
-        });
-      }
-    }
+    // 保存路径只做本地事务和快照读取。AI 仅在用户明确请求“补一个关键点”时调用，
+    // 避免 Provider 延迟把“保存”误表现成卡死。
     const session = await service.getSnapshot(sessionId);
     return NextResponse.json({ answer, session });
   } catch (error) {

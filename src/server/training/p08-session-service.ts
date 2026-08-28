@@ -9,7 +9,8 @@ const LOCAL_USER_ID = 'local-user';
 
 export type P08AnswerType = 'FIRST_ANSWER' | 'SECOND_ANSWER';
 export type P08DraftPhase = 'FIRST_ANSWER' | 'FOLLOW_UP_ANSWER' | 'SECOND_ANSWER';
-export type TrainingPhase = 'FIRST_ANSWER' | 'AWAITING_FOLLOW_UP' | 'SECOND_ANSWER' | 'COMPLETED';
+export type TrainingPhase =
+  'FIRST_ANSWER' | 'FIRST_ANSWER_SAVED' | 'REFINEMENT' | 'SECOND_ANSWER' | 'COMPLETED';
 export type P08HintLevel =
   'H1_ANGLE' | 'H2_ASSET_NAME' | 'H3_LOGIC_NODES' | 'H4_ENGLISH_CHUNKS' | 'H5_FULL_FLOW';
 
@@ -58,6 +59,12 @@ export type AdvanceToSecondAnswerInput = {
   userId?: string;
 };
 
+export type CompleteP08SessionInput = {
+  trainingSessionId: string;
+  expectedBusinessVersion: number;
+  userId?: string;
+};
+
 export type SaveP08HintInput = {
   trainingSessionId: string;
   expectedBusinessVersion: number;
@@ -86,7 +93,7 @@ export class P08SessionValidationError extends Error {
 }
 
 /**
- * P08 的本地状态机。它只保存用户真实输入和用户主动请求的提示事件；R6/R7 由后续任务接入。
+ * P08 的本地状态机。保存路径只处理用户真实输入和本地状态；R6 只在用户主动请求补充建议时由路由调用。
  */
 export class P08SessionService {
   constructor(private readonly prisma: PrismaClient) {}
@@ -182,6 +189,23 @@ export class P08SessionService {
     );
     const followUpState = followUpStateFromCheckpoint(session.checkpoints);
     const r6Task = session.aiTasks[0] ?? null;
+    const primaryAsset = session.questionPlan.assets.find((asset) => asset.role === 'PRIMARY');
+    const candidates = primaryAsset
+      ? await this.prisma.questionPlan.findMany({
+          where: {
+            status: 'VALIDATED',
+            assets: {
+              some: {
+                role: 'PRIMARY',
+                personalAssetVersionId: primaryAsset.personalAssetVersionId,
+              },
+            },
+          },
+          select: { id: true, questionText: true },
+          orderBy: { createdAt: 'desc' },
+          take: 12,
+        })
+      : [];
 
     return {
       id: session.id,
@@ -194,11 +218,13 @@ export class P08SessionService {
         const version = versionsById.get(asset.personalAssetVersionId)!;
         return {
           role: asset.role,
+          personalAssetVersionId: asset.personalAssetVersionId,
           triggerName: version.triggerName,
           version: version.version,
           coreFlow: version.coreFlow,
         };
       }),
+      candidates,
       obligations: session.questionPlan.obligations.map((obligation) => {
         const nodeSupport = obligation.supports.find(
           (support) => support.supportType === 'PERSONAL_ASSET_NODE',
@@ -392,41 +418,20 @@ export class P08SessionService {
             idempotencyKey: input.idempotencyKey,
           },
         });
-
-        if (followUp.issuedIndex >= 3) {
-          await transaction.followUpItem.update({
-            where: { id: followUp.id },
-            data: { status: 'ENDED', endReason: 'MAX_ROUNDS_REACHED' },
-          });
-          await transitionToSecondAnswer(
-            transaction,
-            session.id,
-            userId,
-            input.expectedBusinessVersion,
-            {
-              expectedStatus: 'FOLLOW_UP_IN_PROGRESS',
-              endReason: 'MAX_ROUNDS_REACHED',
-            },
-          );
-          return answer;
-        }
-
         await transaction.followUpItem.update({
           where: { id: followUp.id },
-          data: { status: 'ANSWERED' },
+          data: { status: 'ENDED', endReason: 'USER_ANSWERED' },
         });
-        const update = await transaction.trainingSession.updateMany({
-          where: {
-            id: session.id,
-            userId,
-            businessVersion: input.expectedBusinessVersion,
-            status: 'FOLLOW_UP_IN_PROGRESS',
+        await transitionToSecondAnswer(
+          transaction,
+          session.id,
+          userId,
+          input.expectedBusinessVersion,
+          {
+            expectedStatus: 'FOLLOW_UP_IN_PROGRESS',
+            endReason: 'USER_ANSWERED',
           },
-          data: { businessVersion: { increment: 1 } },
-        });
-        if (update.count !== 1) {
-          throw new P08SessionValidationError('会话状态已变化，请刷新后重试。', 'SESSION_STALE');
-        }
+        );
         return answer;
       });
     } catch (error) {
@@ -504,6 +509,56 @@ export class P08SessionService {
           status: { in: ['QUEUED', 'RUNNING', 'AWAITING_USER_CONFIRMATION'] },
         },
         data: { status: 'SUPERSEDED', resultReference: 'R6_USER_ENDED' },
+      });
+      return { nextBusinessVersion: input.expectedBusinessVersion + 1 };
+    });
+  }
+
+  /**
+   * 用户可以只保留第一次回答结束本轮。不会为了生成比较而强制要求重答。
+   */
+  async complete(input: CompleteP08SessionInput) {
+    const userId = input.userId ?? LOCAL_USER_ID;
+    return this.prisma.$transaction(async (transaction) => {
+      const session = await transaction.trainingSession.findFirst({
+        where: { id: input.trainingSessionId, userId },
+        select: { id: true, status: true, businessVersion: true },
+      });
+      assertSessionVersion(session, input.expectedBusinessVersion);
+      if (
+        !['FIRST_ANSWER_SUBMITTED', 'FOLLOW_UP_IN_PROGRESS', 'FOLLOW_UP_COMPLETE'].includes(
+          session.status,
+        )
+      ) {
+        throw new P08SessionValidationError('当前会话还不能结束。', 'SESSION_STATE_INVALID');
+      }
+
+      if (session.status === 'FOLLOW_UP_IN_PROGRESS') {
+        await transaction.followUpItem.updateMany({
+          where: { trainingSessionId: session.id, status: 'READY' },
+          data: { status: 'SKIPPED', endReason: 'USER_SKIPPED' },
+        });
+      }
+
+      const update = await transaction.trainingSession.updateMany({
+        where: {
+          id: session.id,
+          userId,
+          businessVersion: input.expectedBusinessVersion,
+          status: session.status,
+        },
+        data: { status: 'COMPLETED', businessVersion: { increment: 1 } },
+      });
+      if (update.count !== 1) {
+        throw new P08SessionValidationError('会话状态已变化，请刷新后重试。', 'SESSION_STALE');
+      }
+      await transaction.aiTask.updateMany({
+        where: {
+          trainingSessionId: session.id,
+          role: 'R6',
+          status: { in: ['QUEUED', 'RUNNING', 'AWAITING_USER_CONFIRMATION'] },
+        },
+        data: { status: 'SUPERSEDED', resultReference: 'R6_USER_SKIPPED' },
       });
       return { nextBusinessVersion: input.expectedBusinessVersion + 1 };
     });
@@ -641,9 +696,8 @@ async function assertPhaseAllowsDraft(
 
 function phaseForStatus(status: string): TrainingPhase {
   if (status === 'QUESTION_READY' || status === 'PREPARING') return 'FIRST_ANSWER';
-  if (status === 'FIRST_ANSWER_SUBMITTED' || status === 'FOLLOW_UP_IN_PROGRESS') {
-    return 'AWAITING_FOLLOW_UP';
-  }
+  if (status === 'FIRST_ANSWER_SUBMITTED') return 'FIRST_ANSWER_SAVED';
+  if (status === 'FOLLOW_UP_IN_PROGRESS') return 'REFINEMENT';
   if (status === 'FOLLOW_UP_COMPLETE') return 'SECOND_ANSWER';
   if (status === 'SECOND_ANSWER_SUBMITTED' || status === 'REVIEW_READY' || status === 'COMPLETED') {
     return 'COMPLETED';

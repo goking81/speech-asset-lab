@@ -234,6 +234,34 @@ test('问题计划冻结资产版本，并为每个义务保存可追溯支撑',
   });
 });
 
+test('每行候选问题会冻结为独立计划，并随机选出一个作为本轮入口', async () => {
+  const asset = await createAsset('候选问题池');
+  const service = new SupportedQuestionService(prisma);
+  const candidates = [
+    'What helps you stay proactive?',
+    'How do you create your own opportunities?',
+    'What do you do when progress is slow?',
+  ];
+
+  const created = await service.createPlans({
+    userId: localUserId,
+    questionText: candidates.join('\n'),
+    source: 'USER_REAL',
+    primaryPersonalAssetVersionId: asset.version.id,
+  });
+
+  expect(created.plans).toHaveLength(candidates.length);
+  expect(created.plans.map((plan) => plan.questionText)).toEqual(candidates);
+  expect(created.plans.map((plan) => plan.id)).toContain(created.selectedPlanId);
+  await expect(
+    prisma.questionPlan.findMany({
+      where: { id: { in: created.plans.map((plan) => plan.id) } },
+      select: { questionText: true },
+      orderBy: { createdAt: 'asc' },
+    }),
+  ).resolves.toEqual(candidates.map((questionText) => ({ questionText })));
+});
+
 test('拒绝未确认事实和其他用户的资产', async () => {
   const asset = await createAsset('事实校验');
   const draftFact = await prisma.userFact.create({

@@ -8,6 +8,7 @@ import type {
   VisibleStage,
 } from '@prisma/client';
 
+import { splitQuestionCandidates } from '@/lib/question-candidates';
 import { reconcileCompletedP05Assets } from '@/server/practice/p05-progression';
 
 type DatabaseClient = PrismaClient | Prisma.TransactionClient;
@@ -63,12 +64,22 @@ export type PracticeOverview = {
   }>;
 };
 
+export type CreatedQuestionPlans = {
+  plans: Array<{ id: string; questionText: string }>;
+  selectedPlanId: string;
+};
+
 export type SupportedQuestionPlanView = {
   id: string;
   questionText: string;
   source: QuestionSource;
   status: string;
-  assets: Array<{ role: 'PRIMARY' | 'SECONDARY'; triggerName: string; version: number }>;
+  assets: Array<{
+    role: 'PRIMARY' | 'SECONDARY';
+    personalAssetVersionId: string;
+    triggerName: string;
+    version: number;
+  }>;
   obligations: Array<{
     id: string;
     sequence: number;
@@ -111,84 +122,109 @@ export class SupportedQuestionService {
   }
 
   async createPlan(input: SupportedQuestionInput) {
-    const questionText = input.questionText.trim();
-    if (!questionText) {
+    const created = await this.createPlans({ ...input, questionText: input.questionText.trim() });
+    const plan = created.plans[0];
+    if (!plan) {
       throw new SupportedQuestionValidationError(
         '问题去除首尾空白后不能为空。',
+        'QUESTION_REQUIRED',
+      );
+    }
+    const detail = await this.prisma.questionPlan.findUniqueOrThrow({
+      where: { id: plan.id },
+      include: { question: true },
+    });
+    return {
+      question: detail.question,
+      plan: detail,
+      support: await this.resolveSupportInput(input),
+    };
+  }
+
+  /** 创建独立题目候选项，并随机选出本轮首先准备的一题。 */
+  async createPlans(input: SupportedQuestionInput): Promise<CreatedQuestionPlans> {
+    const questionTexts = splitQuestionCandidates(input.questionText);
+    if (questionTexts.length === 0) {
+      throw new SupportedQuestionValidationError(
+        '请至少输入一道问题；推荐每行一道题。',
         'QUESTION_REQUIRED',
       );
     }
 
     return this.prisma.$transaction(async (transaction) => {
       const support = await this.resolveSupportInputWith(transaction, input);
-      const question = await transaction.question.create({
-        data: { text: questionText, source: input.source },
-      });
-      const plan = await transaction.questionPlan.create({
-        data: {
-          questionId: question.id,
-          version: 1,
-          questionText,
-          distance: 'L1',
-          status: 'VALIDATED',
-          supportProofJson: JSON.stringify({
-            ruleVersion: 'supported-question-v1',
-            primaryPersonalAssetVersionId: support.primary.personalAssetVersionId,
-            secondaryPersonalAssetVersionId: support.secondary?.personalAssetVersionId ?? null,
-            confirmedFactIds: support.facts.map((fact) => fact.id),
-            obligationNodeIds: support.obligationNodes.map((node) => node.id),
-          }),
-          assets: {
-            create: [
-              {
-                role: 'PRIMARY',
-                personalAssetVersionId: support.primary.personalAssetVersionId,
-                personalAssetVersionIdSnapshot: support.primary.personalAssetVersionId,
-              },
-              ...(support.secondary
-                ? [
+      const plans = [] as CreatedQuestionPlans['plans'];
+      for (const questionText of questionTexts) {
+        const question = await transaction.question.create({
+          data: { text: questionText, source: input.source },
+        });
+        const plan = await transaction.questionPlan.create({
+          data: {
+            questionId: question.id,
+            version: 1,
+            questionText,
+            distance: 'L1',
+            status: 'VALIDATED',
+            supportProofJson: JSON.stringify({
+              ruleVersion: 'supported-question-v2-candidate-pool',
+              primaryPersonalAssetVersionId: support.primary.personalAssetVersionId,
+              secondaryPersonalAssetVersionId: support.secondary?.personalAssetVersionId ?? null,
+              confirmedFactIds: support.facts.map((fact) => fact.id),
+              obligationNodeIds: support.obligationNodes.map((node) => node.id),
+            }),
+            assets: {
+              create: [
+                {
+                  role: 'PRIMARY',
+                  personalAssetVersionId: support.primary.personalAssetVersionId,
+                  personalAssetVersionIdSnapshot: support.primary.personalAssetVersionId,
+                },
+                ...(support.secondary
+                  ? [
+                      {
+                        role: 'SECONDARY' as const,
+                        personalAssetVersionId: support.secondary.personalAssetVersionId,
+                        personalAssetVersionIdSnapshot: support.secondary.personalAssetVersionId,
+                      },
+                    ]
+                  : []),
+              ],
+            },
+            obligations: {
+              create: support.obligationNodes.map((node, index) => ({
+                sequence: index + 1,
+                obligationType: 'ASSET_NODE',
+                isRequired: true,
+                description: chineseSkeletonLabel(node.nodeType),
+                supports: {
+                  create: [
                     {
-                      role: 'SECONDARY' as const,
-                      personalAssetVersionId: support.secondary.personalAssetVersionId,
-                      personalAssetVersionIdSnapshot: support.secondary.personalAssetVersionId,
+                      supportType: 'PERSONAL_ASSET_NODE',
+                      supportReferenceId: node.id,
+                      explanation: '由已确认且可调用的个人资产节点支撑。',
                     },
-                  ]
-                : []),
-            ],
+                    {
+                      supportType: 'QUESTION_CONTEXT',
+                      supportReferenceId: question.id,
+                      explanation: '与当前题面直接相关。',
+                    },
+                    ...(index === 0
+                      ? support.facts.map((fact) => ({
+                          supportType: 'CONFIRMED_USER_FACT',
+                          supportReferenceId: fact.id,
+                          explanation: '用户已确认的个人事实。',
+                        }))
+                      : []),
+                  ],
+                },
+              })),
+            },
           },
-          obligations: {
-            create: support.obligationNodes.map((node, index) => ({
-              sequence: index + 1,
-              obligationType: 'ASSET_NODE',
-              isRequired: true,
-              description: chineseSkeletonLabel(node.nodeType),
-              supports: {
-                create: [
-                  {
-                    supportType: 'PERSONAL_ASSET_NODE',
-                    supportReferenceId: node.id,
-                    explanation: '由已确认且可调用的个人资产节点支撑。',
-                  },
-                  {
-                    supportType: 'QUESTION_CONTEXT',
-                    supportReferenceId: question.id,
-                    explanation: '与当前题面直接相关。',
-                  },
-                  ...(index === 0
-                    ? support.facts.map((fact) => ({
-                        supportType: 'CONFIRMED_USER_FACT',
-                        supportReferenceId: fact.id,
-                        explanation: '用户已确认的个人事实。',
-                      }))
-                    : []),
-                ],
-              },
-            })),
-          },
-        },
-      });
-
-      return { question, plan, support };
+        });
+        plans.push({ id: plan.id, questionText: plan.questionText });
+      }
+      const selected = plans[Math.floor(Math.random() * plans.length)];
+      return { plans, selectedPlanId: selected!.id };
     });
   }
 
@@ -305,7 +341,12 @@ export class SupportedQuestionService {
       status: plan.status,
       assets: plan.assets.map((asset) => {
         const version = versionsById.get(asset.personalAssetVersionId)!;
-        return { role: asset.role, triggerName: version.triggerName, version: version.version };
+        return {
+          role: asset.role,
+          personalAssetVersionId: asset.personalAssetVersionId,
+          triggerName: version.triggerName,
+          version: version.version,
+        };
       }),
       obligations: plan.obligations.map((obligation) => {
         const nodeSupport = obligation.supports.find(

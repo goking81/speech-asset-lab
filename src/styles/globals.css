@@ -2776,6 +2776,337 @@ button:focus-visible {
   text-decoration: none;
 }
 
+/* P08 问题训练：一题一资产，候选池与可选下一步。 */
+.training-session--focused {
+  width: min(100%, 1120px);
+}
+
+.training-session__focused-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 260px;
+  gap: 20px;
+  align-items: start;
+}
+
+.training-session--focused .training-session__work {
+  min-height: 0;
+}
+
+.training-session__asset-strip {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  margin-top: 24px;
+  color: var(--color-text-secondary);
+}
+
+.training-session__asset-strip strong {
+  color: var(--color-primary-active);
+  font-weight: 700;
+}
+
+.training-session__logic-chips {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin: 18px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.training-session__logic-chips li {
+  padding: 5px 10px;
+  border: 1px solid #d8e4d4;
+  border-radius: 999px;
+  background: #f7faf5;
+  color: var(--color-primary-active);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.training-session__editor-actions {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-top: 21px;
+}
+
+.training-session__editor-actions .training-session__primary-action,
+.training-session__editor-actions .training-session__secondary-action {
+  margin-top: 0;
+}
+
+.training-session__next-actions,
+.training-session__refinement {
+  margin-top: 18px;
+  padding: 24px;
+  border: 1px solid var(--color-border);
+  border-radius: 14px;
+  background: #fffdf8;
+}
+
+.training-session__next-actions h2,
+.training-session__refinement h2,
+.training-session__candidates h2 {
+  margin: 9px 0 0;
+  color: var(--color-primary-active);
+  font-family: 'STSong', 'Songti SC', 'Noto Serif SC', SimSun, Georgia, serif;
+  font-size: 25px;
+  font-weight: 600;
+}
+
+.training-session__next-actions > p:not(.training-session__serial),
+.training-session__refinement > p:not(.training-session__serial),
+.training-session__candidates > p:not(.training-session__serial) {
+  margin: 10px 0 0;
+  color: var(--color-text-secondary);
+  line-height: 25px;
+}
+
+.training-session__next-actions details {
+  margin-top: 18px;
+  border: 1px solid var(--color-border);
+  border-radius: 9px;
+  background: #fff;
+}
+
+.training-session__next-actions summary {
+  padding: 10px 12px;
+  color: var(--color-primary-active);
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.training-session__next-actions details p {
+  margin: 0;
+  padding: 0 12px 12px;
+  color: var(--color-text-secondary);
+  line-height: 24px;
+  white-space: pre-wrap;
+}
+
+.training-session__choice-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 18px;
+}
+
+.training-session__choice-grid article {
+  padding: 17px;
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  background: #fff;
+}
+
+.training-session__choice-grid h3 {
+  margin: 0;
+  color: var(--color-primary-active);
+  font-family: 'STSong', 'Songti SC', 'Noto Serif SC', SimSun, Georgia, serif;
+  font-size: 19px;
+}
+
+.training-session__choice-grid p {
+  min-height: 62px;
+  margin: 9px 0 0;
+  color: var(--color-text-secondary);
+  line-height: 23px;
+}
+
+.training-session__choice-grid .training-session__primary-action,
+.training-session__choice-grid .training-session__secondary-action {
+  margin-top: 16px;
+}
+
+.training-session__finish-action {
+  min-height: 40px;
+  margin-top: 16px;
+  padding: 8px 14px;
+  border: 1px solid var(--color-primary);
+  border-radius: 10px;
+  background: transparent;
+  color: var(--color-primary-active);
+  cursor: pointer;
+  font: inherit;
+  font-weight: 700;
+}
+
+.training-session__finish-action:disabled {
+  border-color: var(--color-border);
+  color: #8b877e;
+  cursor: not-allowed;
+}
+
+.training-session__refinement {
+  border-left: 3px solid #799074;
+  background: #eff5ec;
+}
+
+.training-session__refinement-purpose {
+  display: inline-block;
+  padding: 5px 10px;
+  border-radius: 999px;
+  background: #fffdf8;
+  color: var(--color-primary-active) !important;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.training-session__refinement-question {
+  color: var(--color-primary-active) !important;
+  font-family: 'STSong', 'Songti SC', 'Noto Serif SC', SimSun, Georgia, serif;
+  font-size: 21px;
+  line-height: 32px !important;
+}
+
+.training-session__candidates {
+  position: sticky;
+  top: 24px;
+  padding: 22px;
+  border: 1px solid var(--color-border);
+  border-radius: 20px;
+  background: #fffdf8;
+}
+
+.training-session__candidates h2 {
+  font-size: 22px;
+}
+
+.training-session__randomize-question {
+  width: 100%;
+  min-height: 40px;
+  margin-top: 16px;
+  padding: 8px 12px;
+  border: 1px solid var(--color-primary);
+  border-radius: 10px;
+  background: #f2f7ef;
+  color: var(--color-primary-active);
+  cursor: pointer;
+  font: inherit;
+  font-weight: 700;
+}
+
+.training-session__randomize-question:disabled {
+  border-color: var(--color-border);
+  background: #f7f5ef;
+  color: var(--color-text-muted);
+  cursor: not-allowed;
+}
+
+.training-session__candidates ol {
+  display: grid;
+  gap: 10px;
+  margin: 19px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.training-session__candidates button {
+  width: 100%;
+  padding: 14px;
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  background: #fff;
+  color: var(--color-primary-active);
+  cursor: pointer;
+  font-family: 'STSong', 'Songti SC', 'Noto Serif SC', SimSun, Georgia, serif;
+  font-size: 16px;
+  line-height: 24px;
+  text-align: left;
+  overflow-wrap: anywhere;
+}
+
+.training-session__candidates button.is-current,
+.training-session__candidates button[aria-current='true'] {
+  border-color: var(--color-primary);
+  background: #f2f7ef;
+  box-shadow: inset 0 0 0 1px #d8e4d4;
+}
+
+.training-session__candidates button:disabled:not(.is-current) {
+  color: var(--color-text-muted);
+  cursor: not-allowed;
+}
+
+.training-session__candidate-note {
+  margin-top: 16px !important;
+  font-size: 12px;
+  line-height: 20px !important;
+}
+
+.training-session--focused .training-session__question h2 {
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 1040px) {
+  .training-session__focused-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .training-session__candidates {
+    position: static;
+  }
+}
+
+@media (max-width: 640px) {
+  .training-session__asset-strip {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .training-session__editor-actions,
+  .training-session__choice-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .training-session__editor-actions,
+  .training-session__choice-grid {
+    display: grid;
+  }
+
+  .training-session__primary-action,
+  .training-session__secondary-action,
+  .training-session__finish-action {
+    width: 100%;
+  }
+}
+
+.question-practice__candidate-hint {
+  margin: -7px 0 0;
+  color: var(--color-text-secondary);
+  line-height: 23px;
+}
+
+.question-practice__candidate-preview {
+  display: grid;
+  gap: 7px;
+  margin: -2px 0 0;
+  padding: 0;
+  list-style: none;
+  counter-reset: candidate;
+}
+
+.question-practice__candidate-preview li {
+  display: grid;
+  grid-template-columns: 26px minmax(0, 1fr);
+  gap: 8px;
+  align-items: start;
+  padding: 9px 11px;
+  border-left: 2px solid #799074;
+  background: #f7faf5;
+  color: var(--color-primary-active);
+  line-height: 22px;
+}
+
+.question-practice__candidate-preview li::before {
+  content: counter(candidate, decimal-leading-zero);
+  counter-increment: candidate;
+  color: var(--color-coach);
+  font-family: 'Cascadia Mono', Consolas, monospace;
+  font-size: 11px;
+}
+
 .review-page {
   max-width: 1180px;
 }

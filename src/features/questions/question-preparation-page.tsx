@@ -114,13 +114,13 @@ export function QuestionPreparationPage() {
         </ol>
       </section>
       <section className="question-preparation__boundary">
-        <h2>开始第一次回答</h2>
+        <h2>开始本轮回答</h2>
         <p>
           进入 P08
-          后，第一次、最多三轮受支撑追问和第二次回答都会独立保存。追问失败、无支撑或你选择结束时，会安全进入空白的第二次回答。
+          后，先保存一次完整回答。保存后由你决定：直接结束本轮、请求一个可跳过的补充点，或打开空白回答框重新组织原题。没有固定追问轮次，也不要求第二次回答。
         </p>
         <button disabled={isStarting} onClick={() => void startP08Session()} type="button">
-          {isStarting ? '正在打开回答会话' : '开始第一次回答'}
+          {isStarting ? '正在打开回答会话' : '开始本轮回答'}
         </button>
         {startStatus && <p className="question-preparation__start-status">{startStatus}</p>}
       </section>

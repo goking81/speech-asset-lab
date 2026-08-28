@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 
 import { readJsonResponse } from '@/lib/api-response';
+import { splitQuestionCandidates } from '@/lib/question-candidates';
 
 type CallableAsset = {
   personalAssetVersionId: string;
@@ -66,7 +67,9 @@ export function QuestionPracticePage() {
 
   const currentAssets = overview?.callableAssets ?? [];
   const canRequestDraft = Boolean(primaryAssetVersionId) && !isSaving;
-  const canCreatePlan = Boolean(primaryAssetVersionId && questionText.trim()) && !isSaving;
+  const questionCandidates = splitQuestionCandidates(questionText);
+  const canCreatePlan =
+    Boolean(primaryAssetVersionId && questionCandidates.length > 0) && !isSaving;
 
   async function requestR4Draft() {
     setIsSaving(true);
@@ -131,12 +134,18 @@ export function QuestionPracticePage() {
           confirmedFactIds: factIds,
         }),
       });
-      const result = await readJsonResponse<{ planId?: string; error?: string }>(
-        response,
-        '无法创建问题准备。',
+      const result = await readJsonResponse<{
+        count?: number;
+        selectedPlanId?: string;
+        error?: string;
+      }>(response, '无法创建问题准备。');
+      if (!response.ok || !result.selectedPlanId) {
+        throw new Error(result.error ?? '无法创建问题准备。');
+      }
+      setStatus(
+        `已保存 ${result.count ?? questionCandidates.length} 道候选题，本轮随机抽取其中一道。`,
       );
-      if (!response.ok || !result.planId) throw new Error(result.error ?? '无法创建问题准备。');
-      router.push(`/practice/new?planId=${encodeURIComponent(result.planId)}`);
+      router.push(`/practice/new?planId=${encodeURIComponent(result.selectedPlanId)}`);
     } catch (reason: unknown) {
       setStatus(reason instanceof Error ? reason.message : '无法创建问题准备。');
       setIsSaving(false);
@@ -180,21 +189,35 @@ export function QuestionPracticePage() {
           <section className="question-practice__form" aria-labelledby="question-create-heading">
             <div>
               <p className="question-practice__serial">CREATE PREPARATION</p>
-              <h2 id="question-create-heading">创建一个受支撑的问题准备</h2>
-              <p>你可以输入真实问题，或请求一份只基于当前资产的 R4 草稿。</p>
+              <h2 id="question-create-heading">创建一个受支撑的问题候选池</h2>
+              <p>输入多道真实问题或采用一份 R4 草稿；每一道都会独立保存，绝不拼接成一个长问题。</p>
             </div>
             <label>
-              真实问题或已采用的草稿
+              候选问题（每行一道）
               <textarea
-                aria-label="真实问题或已采用的草稿"
+                aria-label="候选问题（每行一道）"
                 value={questionText}
                 onChange={(event) => {
                   setQuestionText(event.target.value);
                   setSource('USER_REAL');
                 }}
-                placeholder="例如：When you face a problem at work, what do you usually do?"
+                placeholder={
+                  '例如：\nWhen you face a problem at work, what do you usually do?\nHow do you keep going when progress is slow?'
+                }
               />
             </label>
+            <p className="question-practice__candidate-hint">
+              {questionCandidates.length > 0
+                ? `将保存为 ${questionCandidates.length} 道独立候选题；每次开始训练会随机抽取一道，仍使用你在下方选定的主资产。`
+                : '请一行输入一道题。粘贴成一行的英文问句也会按问号拆开。'}
+            </p>
+            {questionCandidates.length > 0 && (
+              <ol className="question-practice__candidate-preview" aria-label="待保存候选问题">
+                {questionCandidates.map((candidate, index) => (
+                  <li key={`${candidate}-${index}`}>{candidate}</li>
+                ))}
+              </ol>
+            )}
             <div className="question-practice__asset-selects">
               <label>
                 主资产

@@ -6,7 +6,7 @@ import { AiProviderError, type AiProviderAdapter } from '@/ai/provider';
 import { ensureLocalTrainingRelease } from '@/server/ai/r6-release-service';
 
 const LOCAL_USER_ID = 'local-user';
-const maxFollowUpRounds = 3;
+const maxFollowUpRounds = 1;
 
 export type R6EndReason =
   | 'CONTENT_COMPLETE'
@@ -282,7 +282,7 @@ export class R6FollowUpService {
           issuedIndex,
           questionText: decision.questionText,
           supportProofJson: JSON.stringify({
-            ruleVersion: 'r6-supported-follow-up-v1',
+            ruleVersion: 'r6-optional-refinement-v2',
             questionPlanId: context.session.questionPlanId,
             obligationId: obligation.id,
             obligationSequence: obligation.sequence,
@@ -583,9 +583,9 @@ function r6PromptInput(context: Awaited<ReturnType<R6FollowUpService['loadContex
   });
   return [
     'Return JSON only.',
-    'For one safe follow-up use {"action":"ASK","questionText":"","supportObligationId":""}.',
+    'For one optional refinement use {"action":"ASK","questionText":"","supportObligationId":""}.',
     'To stop use {"action":"END","endReason":"CONTENT_COMPLETE|NO_PROGRESS|NO_SUPPORTED_GAP"}.',
-    'Ask at most one question. Choose only one supplied supportObligationId. Do not introduce assets, facts, topics, or evaluation not present below.',
+    'Ask at most one question. Only ask when one supplied obligation is genuinely missing or unclear. The question must name one concrete addition (for example a reason, action, or example), must not repeat or paraphrase the original question, and must be easy for the user to skip. Choose only one supplied supportObligationId. Do not introduce assets, facts, topics, evaluation, scores, or judgments not present below.',
     `Original question: ${context.session.questionPlan.questionText}`,
     `Latest saved answer: ${context.answer.text}`,
     `Previous rounds: ${JSON.stringify(previousRounds)}`,

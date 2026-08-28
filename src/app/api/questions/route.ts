@@ -27,7 +27,7 @@ export async function POST(request: Request) {
   try {
     const body = (await request.json()) as Record<string, unknown>;
     const source = body.source === 'AI_GENERATED' ? 'AI_GENERATED' : 'USER_REAL';
-    const result = await new SupportedQuestionService(prisma).createPlan({
+    const result = await new SupportedQuestionService(prisma).createPlans({
       userId: 'local-user',
       questionText: stringValue(body.questionText),
       source,
@@ -35,7 +35,11 @@ export async function POST(request: Request) {
       secondaryPersonalAssetVersionId: optionalStringValue(body.secondaryPersonalAssetVersionId),
       confirmedFactIds: stringArray(body.confirmedFactIds),
     });
-    return NextResponse.json({ planId: result.plan.id, questionId: result.question.id });
+    return NextResponse.json({
+      planIds: result.plans.map((plan) => plan.id),
+      selectedPlanId: result.selectedPlanId,
+      count: result.plans.length,
+    });
   } catch (error) {
     const message =
       error instanceof SupportedQuestionValidationError || error instanceof Error
