@@ -103,7 +103,10 @@ export class AssetPracticeService {
         orderBy: { updatedAt: 'desc' },
         select: { id: true },
       });
-      if (existing) return { sessionId: existing.id, reused: true };
+      if (existing) {
+        await this.markTaskInProgress(source.trainingTaskId, userId);
+        return { sessionId: existing.id, reused: true };
+      }
     }
 
     const now = new Date();
@@ -122,6 +125,7 @@ export class AssetPracticeService {
       },
       select: { id: true },
     });
+    await this.markTaskInProgress(source.trainingTaskId, userId);
     return { sessionId: session.id, reused: false };
   }
 
@@ -258,6 +262,16 @@ export class AssetPracticeService {
         });
         if (!nextStep) {
           await promoteCompletedP05Asset(transaction, userId, session.personalAssetId);
+          if (session.trainingTaskId) {
+            await transaction.trainingTask.updateMany({
+              where: {
+                id: session.trainingTaskId,
+                dailyPlan: { userId },
+                status: { in: ['PENDING', 'IN_PROGRESS'] },
+              },
+              data: { status: 'COMPLETED' },
+            });
+          }
         }
         return attempt;
       });
@@ -329,6 +343,18 @@ export class AssetPracticeService {
       throw new AssetPracticeValidationError('原训练会话不存在。', 'SESSION_NOT_FOUND');
     }
     return session;
+  }
+
+  private async markTaskInProgress(trainingTaskId: string | null, userId: string) {
+    if (!trainingTaskId) return;
+    await this.prisma.trainingTask.updateMany({
+      where: {
+        id: trainingTaskId,
+        dailyPlan: { userId },
+        status: 'PENDING',
+      },
+      data: { status: 'IN_PROGRESS' },
+    });
   }
 }
 

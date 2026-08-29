@@ -55,11 +55,10 @@ button:focus-visible {
 }
 
 .app-shell__sidebar {
-  position: fixed;
-  z-index: 1;
-  top: 0;
-  bottom: 0;
+  position: relative;
+  align-self: start;
   width: 252px;
+  min-height: 100vh;
   padding: 25px 16px 18px;
   border-right: 1px solid var(--color-border);
   background: var(--color-frame);
@@ -334,8 +333,7 @@ button:focus-visible {
 }
 
 .settings-nav {
-  position: sticky;
-  top: 80px;
+  position: static;
   display: grid;
   gap: 4px;
   padding: 8px;
@@ -1700,12 +1698,10 @@ button:focus-visible {
 
 .page-back-link,
 .asset-detail__back {
-  position: fixed;
-  z-index: 3;
-  top: 70px;
-  left: 276px;
+  position: static;
   display: inline-flex;
   min-height: 36px;
+  margin: 0 0 24px;
   align-items: center;
   padding: 8px 12px;
   border: 1px solid var(--color-border);
@@ -1724,11 +1720,11 @@ button:focus-visible {
 }
 
 .page--with-back-link .page-heading {
-  margin-top: 76px;
+  margin-top: 0;
 }
 
 .page--with-back-link > :not(.page-back-link):first-of-type {
-  margin-top: 76px;
+  margin-top: 0;
 }
 
 .today-plan {
@@ -4033,8 +4029,6 @@ button:focus-visible {
 
 .warm-forest .page-back-link,
 .warm-forest .asset-detail__back {
-  top: 78px;
-  left: 254px;
   min-height: 38px;
   padding: 8px 13px;
   border-color: #d8d0c1;
@@ -4055,7 +4049,7 @@ button:focus-visible {
 }
 
 .warm-forest .page--with-back-link > :not(.page-back-link):nth-child(2) {
-  margin-top: 84px;
+  margin-top: 0;
 }
 
 /* 首页：可选训练卡片与可展开的 AI 说明 */
@@ -4574,11 +4568,6 @@ button:focus-visible {
     padding-inline: 28px;
   }
 
-  .warm-forest .page-back-link,
-  .warm-forest .asset-detail__back {
-    left: 228px;
-  }
-
   .warm-forest .content-workspace__flow {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -4778,11 +4767,11 @@ button:focus-visible {
 }
 
 .warm-forest .app-shell__sidebar {
-  position: sticky;
-  top: 0;
+  position: relative;
+  align-self: start;
   width: 176px;
-  height: 100vh;
-  min-height: 720px;
+  height: auto;
+  min-height: 100vh;
   padding: 40px 15px 26px;
   overflow: hidden;
   border: 0;
@@ -6525,9 +6514,7 @@ button:focus-visible {
 }
 
 .warm-forest .landing-demo__nav {
-  position: sticky;
-  z-index: 30;
-  top: 16px;
+  position: static;
   display: grid;
   grid-template-columns: 1fr auto 1fr;
   align-items: center;

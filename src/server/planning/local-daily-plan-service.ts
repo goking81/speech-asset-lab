@@ -64,6 +64,7 @@ export class LocalDailyPlanService {
     const userId = input.userId ?? 'local-user';
     const planDate = startOfShanghaiDay(input.now ?? new Date());
     await this.ensureUser(userId);
+    await this.reconcileResolvedTasks(userId);
 
     const existingPlan = await this.prisma.dailyPlan.findUnique({
       where: { userId_planDate: { userId, planDate } },
@@ -157,6 +158,7 @@ export class LocalDailyPlanService {
         userId,
         isActive: true,
         learningState: { not: 'ARCHIVED' },
+        internalStage: { in: ['S0', 'S1'] },
         personalAsset: { versions: { some: { status: 'CONFIRMED' } } },
       },
       select: {
@@ -193,6 +195,61 @@ export class LocalDailyPlanService {
         ];
       })
       .sort(compareAssetsForPlan);
+  }
+
+  /**
+   * 历史会话完成后，旧日计划中的任务也必须结束；否则已掌握资产会一直留在“今日训练”。
+   */
+  private async reconcileResolvedTasks(userId: string) {
+    const tasks = await this.prisma.trainingTask.findMany({
+      where: {
+        dailyPlan: { userId },
+        status: { in: ['PENDING', 'IN_PROGRESS'] },
+      },
+      select: {
+        id: true,
+        taskType: true,
+        targetEntityId: true,
+        practiceSessions: {
+          where: { status: 'COMPLETED' },
+          select: { id: true },
+          take: 1,
+        },
+      },
+    });
+    if (tasks.length === 0) return;
+
+    const assetIds = tasks
+      .map((task) => task.targetEntityId)
+      .filter((id): id is string => Boolean(id));
+    const states = await this.prisma.userAssetState.findMany({
+      where: { userId, personalAssetId: { in: assetIds } },
+      select: { personalAssetId: true, internalStage: true },
+    });
+    const stagesByAssetId = new Map(states.map((state) => [state.personalAssetId, state.internalStage]));
+
+    const completedTaskIds = tasks
+      .filter((task) => task.practiceSessions.length > 0)
+      .map((task) => task.id);
+    const noLongerPlannedTaskIds = tasks
+      .filter(
+        (task) =>
+          task.practiceSessions.length === 0 &&
+          task.taskType === 'SINGLE_ASSET_INVOCATION' &&
+          !['S0', 'S1'].includes(stagesByAssetId.get(task.targetEntityId ?? '') ?? 'S0'),
+      )
+      .map((task) => task.id);
+
+    await this.prisma.$transaction([
+      this.prisma.trainingTask.updateMany({
+        where: { id: { in: completedTaskIds } },
+        data: { status: 'COMPLETED' },
+      }),
+      this.prisma.trainingTask.updateMany({
+        where: { id: { in: noLongerPlannedTaskIds } },
+        data: { status: 'SKIPPED' },
+      }),
+    ]);
   }
 }
 
@@ -267,13 +324,14 @@ function snapshotFor(
 
 function planReasonFor(assets: PlannedAsset[], confirmedAssetCount: number) {
   if (confirmedAssetCount === 0) return 'NO_CONFIRMED_PERSONAL_ASSETS';
-  if (assets.length === 0) return 'NO_ACTIVE_CONFIRMED_PERSONAL_ASSETS';
+  if (assets.length === 0) return 'NO_PENDING_ASSET_TRAINING';
   return 'LOCAL_ELIGIBILITY_RULES_V1';
 }
 
 function isRegenerableEmptyPlan(reason: string | null) {
   return (
     reason === 'NO_CONFIRMED_PERSONAL_ASSETS' || reason === 'NO_ACTIVE_CONFIRMED_PERSONAL_ASSETS'
+    || reason === 'NO_PENDING_ASSET_TRAINING'
   );
 }
 
@@ -299,12 +357,15 @@ function toLocalDailyPlan(plan: {
     eligibilityJson: string | null;
   }>;
 }): LocalDailyPlan {
+  const remainingTasks = plan.tasks.filter((task) => !isResolvedTaskStatus(task.status));
+  const allTasksResolved = plan.tasks.length > 0 && remainingTasks.length === 0;
+
   return {
     id: plan.id,
     planDate: plan.planDate,
     status: plan.status,
-    reason: plan.reason,
-    tasks: plan.tasks.map((task) => {
+    reason: allTasksResolved ? 'TODAY_TRAINING_COMPLETE' : plan.reason,
+    tasks: remainingTasks.map((task) => {
       const snapshot = parseSnapshot(task.eligibilityJson);
       return {
         id: task.id,
@@ -320,6 +381,10 @@ function toLocalDailyPlan(plan: {
       };
     }),
   };
+}
+
+function isResolvedTaskStatus(status: string) {
+  return ['COMPLETED', 'SKIPPED', 'INVALIDATED'].includes(status);
 }
 
 function parseSnapshot(value: string | null): EligibilitySnapshot | null {

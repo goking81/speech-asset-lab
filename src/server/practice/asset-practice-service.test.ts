@@ -65,6 +65,9 @@ test('从本地单资产任务建立并恢复冻结版本的 P05 会话', async 
   expect(snapshot.personalAssetVersion.extendedFlow).toBe('个人词伙中文注释');
   expect(snapshot).not.toHaveProperty('personalAsset');
   expect(snapshot).not.toHaveProperty('anchorQuestion');
+  await expect(prisma.trainingTask.findUniqueOrThrow({ where: { id: fixture.task.id } })).resolves.toMatchObject({
+    status: 'IN_PROGRESS',
+  });
 });
 
 test('五步主链路保存独立 Attempt、严格执行门禁并恢复文字草稿', async () => {
@@ -213,6 +216,9 @@ test('五步主链路保存独立 Attempt、严格执行门禁并恢复文字草
     internalStage: 'S2',
     visibleStage: 'SINGLE_ASSET_INVOCATION',
     learningState: 'CALLABLE',
+  });
+  await expect(prisma.trainingTask.findUniqueOrThrow({ where: { id: fixture.task.id } })).resolves.toMatchObject({
+    status: 'COMPLETED',
   });
 });
 

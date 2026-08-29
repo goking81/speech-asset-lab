@@ -237,6 +237,8 @@ export class SupportedQuestionService {
         orderBy: { createdAt: 'asc' },
       }),
       this.prisma.questionPlan.findMany({
+        // 被历史合并题替换掉的计划需要保留其会话记录，但不应继续出现在可练习列表中。
+        where: { status: 'VALIDATED' },
         include: { question: { select: { source: true } }, assets: true },
         orderBy: { createdAt: 'desc' },
       }),

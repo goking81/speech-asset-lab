@@ -139,3 +139,53 @@ test('当天空计划在后续导入可训练资产后会重新生成', async ()
     ],
   });
 });
+
+test('已进入单资产调用阶段的资产会退出今日单资产训练队列', async () => {
+  const userId = 'callable-asset-user';
+  const planDate = new Date('2026-07-29T00:00:00.000Z');
+  const now = new Date('2026-07-29T08:00:00.000Z');
+  await prisma.user.create({ data: { id: userId, displayName: 'Callable Asset User' } });
+  const sourceAsset = await prisma.sourceAsset.create({ data: { userId } });
+  const personalAsset = await prisma.personalAsset.create({
+    data: { userId, sourceAssetId: sourceAsset.id },
+  });
+  await prisma.personalAssetVersion.create({
+    data: {
+      personalAssetId: personalAsset.id,
+      version: 1,
+      triggerName: '已经掌握的语流',
+      coreIdea: '用于问题训练的资产',
+      coreFlow: 'A completed flow can now support an answer.',
+      status: 'CONFIRMED',
+      confirmedAt: planDate,
+    },
+  });
+  await prisma.userAssetState.create({
+    data: {
+      userId,
+      personalAssetId: personalAsset.id,
+      internalStage: 'S2',
+      visibleStage: 'SINGLE_ASSET_INVOCATION',
+      learningState: 'CALLABLE',
+    },
+  });
+  const dailyPlan = await prisma.dailyPlan.create({
+    data: { userId, planDate, reason: 'LOCAL_ELIGIBILITY_RULES_V1' },
+  });
+  const task = await prisma.trainingTask.create({
+    data: {
+      dailyPlanId: dailyPlan.id,
+      taskType: 'SINGLE_ASSET_INVOCATION',
+      sequence: 1,
+      targetEntityId: personalAsset.id,
+      reason: 'LOCAL_ELIGIBILITY_RULES_V1',
+    },
+  });
+
+  const plan = await new LocalDailyPlanService(prisma).getOrCreateTodayPlan({ userId, now });
+
+  expect(plan).toMatchObject({ reason: 'TODAY_TRAINING_COMPLETE', tasks: [] });
+  await expect(prisma.trainingTask.findUniqueOrThrow({ where: { id: task.id } })).resolves.toMatchObject({
+    status: 'SKIPPED',
+  });
+});

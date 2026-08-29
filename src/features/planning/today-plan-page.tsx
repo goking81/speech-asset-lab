@@ -486,24 +486,31 @@ function CoachPanel({
 
 function TodayPlanEmpty({ reason }: { reason: string | null }) {
   const hasInactiveAssets = reason === 'NO_ACTIVE_CONFIRMED_PERSONAL_ASSETS';
+  const isTodayComplete = reason === 'TODAY_TRAINING_COMPLETE' || reason === 'NO_PENDING_ASSET_TRAINING';
 
   return (
     <section className="today-plan__empty" aria-labelledby="today-plan-empty-heading">
       <p className="today-plan__serial">LOCAL TRAINING QUEUE</p>
       <h2 id="today-plan-empty-heading">
-        {hasInactiveAssets ? '还没有处于训练中的个人资产' : '还没有可训练的个人资产'}
+        {isTodayComplete
+          ? '今日单资产训练已完成'
+          : hasInactiveAssets
+            ? '还没有处于训练中的个人资产'
+            : '还没有可训练的个人资产'}
       </h2>
       <p>
-        {hasInactiveAssets
-          ? '已确认的个人资产尚未进入本地训练队列，因此今天不会伪造训练任务。'
-          : '普通来源资产需建立个人版本；已导入的初始学习资产会自动具备可训练版本。'}
+        {isTodayComplete
+          ? '已完成的资产已从今日队列移出，并可在问题训练中作为受支撑资产调用。'
+          : hasInactiveAssets
+            ? '已确认的个人资产尚未进入本地训练队列，因此今天不会伪造训练任务。'
+            : '普通来源资产需建立个人版本；已导入的初始学习资产会自动具备可训练版本。'}
       </p>
       <div className="today-plan__actions">
         <Link
           className="today-plan__primary-action"
-          href={hasInactiveAssets ? '/assets' : '/content'}
+          href={isTodayComplete ? '/practice' : hasInactiveAssets ? '/assets' : '/content'}
         >
-          {hasInactiveAssets ? '查看资产库' : '前往内容工作台'}
+          {isTodayComplete ? '前往问题训练' : hasInactiveAssets ? '查看资产库' : '前往内容工作台'}
         </Link>
       </div>
     </section>
