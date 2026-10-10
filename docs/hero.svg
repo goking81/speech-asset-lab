@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 360" width="100%" role="img" aria-label="英语语流资产工作台">
+  <title>英语语流资产工作台 · 项目首屏图</title>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#ffffff"/>
+      <stop offset="1" stop-color="#f3f4f6"/>
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="360" rx="24" fill="url(#bg)"/>
+  <rect x="0" y="0" width="10" height="360" fill="#2f9e57"/>
+  <g font-family="'PingFang SC','Microsoft YaHei','Noto Sans SC',system-ui,sans-serif">
+    <text x="72" y="150" font-size="56" font-weight="700" fill="#111827">英语语流资产工作台</text>
+    <text x="74" y="205" font-size="24" fill="#6b7280">本地语流训练资产管理</text>
+    <text x="74" y="300" font-size="20" fill="#2f9e57" font-weight="600">导入 · 对齐 · 练习 · 备份</text>
+  </g>
+  <g transform="translate(940,80)" stroke="#2f9e57" fill="none" stroke-width="6" stroke-linecap="round">
+    <circle cx="120" cy="100" r="64" fill="#2f9e57" opacity="0.10"/>
+    <circle cx="120" cy="100" r="44"/>
+    <line x1="154" y1="134" x2="200" y2="180" stroke-width="10"/>
+  </g>
+</svg>
